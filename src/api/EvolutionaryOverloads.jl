@@ -30,7 +30,7 @@ function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population
 end
 
 """Show override function to prevent printing large arrays"""
-function Evolutionary.show(io::IO, t::Evolutionary.OptimizationTraceRecord)
+function Evolutionary.show(io::IO, t::Evolutionary.OptimizationTraceRecord{Float64,CustomGAState}) 
     print(io, lpad("$(t.iteration)",6))
     print(io, "   ")
     print(io, lpad("$(t.value)",14))
@@ -141,7 +141,7 @@ end
 
 Constructor for an objective function object around the function `f` with initial parameter `x`, and objective value `F`.
 """
-function Evolutionary.EvolutionaryObjective(f::TC, x::Vector{Float64}, F::Matrix{Float64};
+function Evolutionary.EvolutionaryObjective(f::TC, x::Vector{Float64}, F::AbstractMatrix;
                                eval::Symbol = :serial) where {TC}
     # @info "Using custom EvolutionaryObjective constructor"
     defval = Evolutionary.default_values(x)
@@ -155,11 +155,11 @@ function Evolutionary.EvolutionaryObjective(f::TC, x::Vector{Float64}, F::Matrix
 end
 
 """Override of the multiobjective check"""
-Evolutionary.ismultiobjective(obj) = false
+Evolutionary.ismultiobjective(obj::::EvolutionaryObjective{TC,TF,TX::Vector{Float64},Val{:thread}}) = false
 
 """Modified value! function from Evolutionary.jl to allow for multiple outputs from the objective function to be stored"""
 function Evolutionary.value!(obj::EvolutionaryObjective{TC,TF,TX,Val{:thread}},
-                                F::AbstractMatrix, xs::AbstractVector{TX}) where {TC,TF,TX}
+                                F::AbstractMatrix, xs::Vector{Vector{64}}) where {TC,TF}
     n = length(xs)
     # @info "Evaluating $(n) individuals in parallel"
     Threads.@threads for i in 1:n
@@ -174,7 +174,7 @@ end
 
 """Same value! function but with serial eval"""
 function Evolutionary.value!(obj::EvolutionaryObjective{TC,TF,TX,Val{:serial}},
-                                F::AbstractMatrix, xs::AbstractVector{TX}) where {TC,TF,TX}
+                                F::AbstractMatrix, xs::Vector{Vector{64}}) where {TC,TF}
     n = length(xs)
     for i in 1:n
         F[:,i] .= Evolutionary.value(obj, xs[i])  #* evaluate the fitness, period, and amplitude for each individual
