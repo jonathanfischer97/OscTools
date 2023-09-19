@@ -155,7 +155,7 @@ function Evolutionary.EvolutionaryObjective(f::TC, x::Vector{Float64}, F::Abstra
 end
 
 """Override of the multiobjective check"""
-Evolutionary.ismultiobjective(obj::EvolutionaryObjective{TC,TF,TX::Vector{Float64},Val{:thread}}) = false
+Evolutionary.ismultiobjective(obj::EvolutionaryObjective{Function,Matrix{Float64},Vector{Float64},Val{:thread}}) = false
 
 """Modified value! function from Evolutionary.jl to allow for multiple outputs from the objective function to be stored"""
 function Evolutionary.value!(obj::EvolutionaryObjective{TC,TF,TX,Val{:thread}},
