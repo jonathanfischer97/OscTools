@@ -1,9 +1,4 @@
 #< Plotting utilities for testing
-
-using Plots
-using ColorSchemes, Plots.PlotMeasures
-default(lw = 2, size = (1000, 600), dpi = 200, bottom_margin = 12px, left_margin = 16px, top_margin = 10px, right_margin = 8px)
-
 """
 Plot the solution from a row of the DataFrame
 L(t) K(t) P(t) A(t) Lp(t) LpA(t) LK(t) LpP(t) LpAK(t) LpAP(t) LpAKL(t) LpAPLp(t) AK(t) AP(t) AKL(t) APLp(t)
@@ -147,7 +142,7 @@ end
 """
 Plot the solution and FFT of every row in the DataFrame
 """
-function plot_everything(df::DataFrame, prob::ODEProblem; jump=10, path = "OscillatorPaper/FigureGenerationScripts/TestbenchPlots")
+function plot_everything(df::DataFrame, prob::ODEProblem; jump=10, path)
         progbar = Progress(cld(nrow(df),jump); desc = "Plotting:")
         # plotpath = mkpath(path*"/Plots")
         # CSV.write(path*"/Set$(setnum)-$(label).csv", df)

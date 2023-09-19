@@ -7,7 +7,9 @@ module OscTools
     using DataFrames, CSV
     using LinearAlgebra
     using ProgressMeter
-
+    using Plots
+    using ColorSchemes, Plots.PlotMeasures
+#     default(lw = 2, size = (1000, 600), dpi = 200, bottom_margin = 12px, left_margin = 16px, top_margin = 10px, right_margin = 8px)
 
 
 
