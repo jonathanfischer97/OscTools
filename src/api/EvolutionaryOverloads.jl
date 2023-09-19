@@ -30,7 +30,7 @@ function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population
 end
 
 """Show override function to prevent printing large arrays"""
-function Evolutionary.show(io::IO, t::Evolutionary.OptimizationTraceRecord{Float64,CustomGAState}) 
+function Evolutionary.show(io::IO, t::Evolutionary.OptimizationTraceRecord{Float64, O}) where O <: Evolutionary.AbstractOptimizer
     print(io, lpad("$(t.iteration)",6))
     print(io, "   ")
     print(io, lpad("$(t.value)",14))
