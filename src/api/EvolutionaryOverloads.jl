@@ -159,7 +159,7 @@ Evolutionary.ismultiobjective(obj::EvolutionaryObjective{Function,Matrix{Float64
 
 """Modified value! function from Evolutionary.jl to allow for multiple outputs from the objective function to be stored"""
 function Evolutionary.value!(obj::EvolutionaryObjective{TC,TF,TX,Val{:thread}},
-                                F::AbstractMatrix, xs::Vector{Vector{64}}) where {TC,TF}
+                                F::AbstractMatrix, xs::Vector{TX}) where {TC,TF,TX <: AbstractVector}
     n = length(xs)
     # @info "Evaluating $(n) individuals in parallel"
     Threads.@threads for i in 1:n
@@ -174,7 +174,7 @@ end
 
 """Same value! function but with serial eval"""
 function Evolutionary.value!(obj::EvolutionaryObjective{TC,TF,TX,Val{:serial}},
-                                F::AbstractMatrix, xs::Vector{Vector{64}}) where {TC,TF}
+                                F::AbstractMatrix, xs::Vector{TX}) where {TC,TF, TX <: AbstractVector}
     n = length(xs)
     for i in 1:n
         F[:,i] .= Evolutionary.value(obj, xs[i])  #* evaluate the fitness, period, and amplitude for each individual
