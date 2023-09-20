@@ -161,7 +161,7 @@ end
 ## Calculate tspan based on the slowest reaction rate.\n
 - Simply the reciprocal of the minimum first order rate constants, or the reciprocal of the minimum second order rate constants multiplied by the minimum concentration of the reactants
 """
-function calculate_tspan(params, initial_conditions; max_t = 1e5)
+function calculate_tspan(params, initial_conditions; max_t = 1e4)
     #* Get the minimum rate constant
     min_k, min_k_idx = findmin(params)
 
@@ -178,7 +178,7 @@ end
 #> END OF FITNESS FUNCTION CALLERS AND WRAPPERS ##
 
 
-
+#* change rates associated with which complexes in calculate_tspan 
 
 
 
