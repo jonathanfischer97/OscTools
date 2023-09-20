@@ -16,14 +16,12 @@ function elbow_method(results::GAResults, kmax::Int)
 end
 
 function kmeans(df::DataFrame, k::Int; exclude_cols::Vector{Symbol} = Symbol[])
-    included_cols = setdiff(propertynames(df), exclude_cols)
-    data_matrix = Matrix(df[:, included_cols])
+    data_matrix = df_to_matrix(df, exclude_cols)
     return kmeans(data_matrix, k)
 end
 
 function elbow_method(df::DataFrame, max_k::Int; exclude_cols::Vector{Symbol} = Symbol[])
-    included_cols = setdiff(propertynames(df), exclude_cols)
-    data_matrix = Matrix(df[:, included_cols])
+    data_matrix = df_to_matrix(df, exclude_cols)
     return elbow_method(data_matrix, max_k)
 end
 
