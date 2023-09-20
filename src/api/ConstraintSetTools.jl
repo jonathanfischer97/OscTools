@@ -25,6 +25,9 @@ Base.eltype(::Type{ConstraintSet}) = ConstraintRange
 """Gives the active length of a ConstraintSet, i.e. the number of elements that are not fixed. Doesn't care whether value is assigned or not!"""
 activelength(constraints::ConstraintSet) = count(x -> !x.isfixed, constraints)
 
+"""Gives the fixed length of a ConstraintSet, i.e. the number of elements that are fixed. Doesn't care whether value is assigned or not!"""
+fixedlength(constraints::ConstraintSet) = count(x -> x.isfixed, constraints)
+
 
 """Returns the numerical index of a field in a ConstraintSet"""
 function find_field_index(field_name::Union{Symbol, String}, constraint::ConstraintSet)
@@ -60,6 +63,11 @@ function get_fixed_constraintranges(constraints::ConstraintSet)::Vector{Constrai
     end
     return fixed_constraintranges  # Return the array of indices
 end
+
+
+"""Returns a vector of the names (symbols) of the fixed input"""
+get_fixed_names(constraints::ConstraintSet) = [constraintrange.name for constraintrange in constraints if constraintrange.isfixed]
+
 #> END ##
 
 

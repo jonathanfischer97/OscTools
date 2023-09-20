@@ -257,11 +257,14 @@ struct GAResults
     periods::Vector{Float64}
     amplitudes::Vector{Float64}
     gen_indices::Vector{Tuple{Int,Int}}
+    fixed_names::Vector{Symbol}
 end
 
 """Constructor for a GAResults object, also stores the indices of each generation"""
-function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, indlength::Int)
+function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constraintset::ConstraintSet)
     numpoints = sum(length, (gen.metadata["fitvals"] for gen in result.trace))
+
+    indlength = activelength(constraintset)
     population = [Vector{Float64}(undef, indlength) for _ in 1:numpoints]
     fitvals = Vector{Float64}(undef, numpoints)
     periods = Vector{Float64}(undef, numpoints)
@@ -284,7 +287,9 @@ function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, indleng
 
         startidx = endidx + 1
     end
-    return GAResults(result.trace, population, fitvals, periods, amplitudes, gen_indices)
+
+    fixed_names = get_fixed_names(constraintset)
+    return GAResults(result.trace, population, fitvals, periods, amplitudes, gen_indices, fixed_names)
 end
 #> END ##
 
@@ -337,7 +342,7 @@ function run_GA(ga_problem::GAProblem, population::Vector{Vector{Float64}} = gen
 
     # BLAS.set_num_threads(blas_threads)
     # return result
-    return GAResults(result, activelength(ga_problem.constraints))
+    return GAResults(result, ga_problem.constraints)
 end
 #> END
 
