@@ -15,6 +15,10 @@ function elbow_method(results::GAResults, kmax::Int)
     return elbow_method(data_matrix, kmax)
 end
 
+function df_to_matrix(df::DataFrame, exclude_cols::Vector{Symbol})
+    return Matrix(df[:, Not(exclude_cols)])
+end
+
 function kmeans(df::DataFrame, k::Int; exclude_cols::Vector{Symbol} = Symbol[])
     data_matrix = df_to_matrix(df, exclude_cols)
     return kmeans(data_matrix, k)
