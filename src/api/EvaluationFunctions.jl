@@ -75,7 +75,7 @@ end
 """
 Core fitness function logic that takes in the solution and time array and returns the [fitness, period, amplitude]
 """
-function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}, plan:FT) where {FT<:FFTW.rFFTWPlan}
+function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {FT<:FFTW.rFFTWPlan}
 
     #* Check if the solution is steady state
     if is_steadystate(solu, solt)
