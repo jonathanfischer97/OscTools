@@ -7,10 +7,9 @@ module OscTools
     using DataFrames, CSV
     using LinearAlgebra
     using ProgressMeter
-    using Plots
+    using Plots#, RecipesBase
     using ColorSchemes, Plots.PlotMeasures
     import Clustering: kmeans
-#     default(lw = 2, size = (1000, 600), dpi = 200, bottom_margin = 12px, left_margin = 16px, top_margin = 10px, right_margin = 8px)
 
 
 
@@ -50,6 +49,6 @@ module OscTools
 
     #include clustering utilities
     include("api/ClusteringTools.jl")
-    export population_to_matrix, kmeans, elbow_method
+    export population_to_matrix, kmeans, elbow_method, df_to_matrix
 
 end
