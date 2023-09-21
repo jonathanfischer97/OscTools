@@ -73,7 +73,16 @@ function FitnessFunction(sol::OS) where {OS <: ODESolution}
 end
 
 """
+    FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
+    
 Core fitness function logic that takes in the solution and time array and returns the [fitness, period, amplitude]
+
+#Arguments
+-`solu::Vector{Float64}`: The concentration output from the ODESolution (sol.u)
+-`solt::Vector{Float64}`: The time data from the ODESolution (sol.t)
+
+#Returns
+-[fitness, period, amplitude] Note that a nonzero fitness indicates an oscillatory solution
 """
 function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {FT<:FFTW.rFFTWPlan}
 
