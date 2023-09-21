@@ -1,9 +1,10 @@
 #< CUSTOM GA STATE TYPE AND BASE OVERLOADS ##
-"""Custom GA state type that captures additional data from the objective function in the extradata field\n
-    - `T` is the type of the fitness value\n
-    - `IT` is the type of the individual\n
-    - `TT` is the type of the additional data from the objective function\n
-"""
+"""Custom GA state type that captures additional data from the objective function in `fitvals`\n
+    - `N` is the number of elements in an individual\n
+    - `eliteSize` is the number of individuals that are copied to the next generation\n
+    - `fittestValue` is the fitness of the fittest individual\n
+    - `fitvals` is a Matrix of the fitness, period, and amplitude of the population\n
+    - `fittestInd` is the fittest individual\n"""
 mutable struct CustomGAState <: Evolutionary.AbstractOptimizerState  
     N::Int  #* number of elements in an individual
     eliteSize::Int  #* number of individuals that are copied to the next generation
