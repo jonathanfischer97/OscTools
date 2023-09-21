@@ -23,14 +23,14 @@ function make_fitness_function_threaded(constraints::CT, ode_problem::OP, eval_f
         input[fixed_idxs] .= fixed_values  # Fill in fixed values
     end
 
-    rfft_plan = make_rfft_plan(ode_problem)
+    # rfft_plan = make_rfft_plan(ode_problem)
 
     function fitness_function(input::Vector{Float64})
         # Get the merged_input array for the current thread
         merged_input = merged_inputs[Threads.threadid()]
         merged_input[non_fixed_indices] .= input  # Fill in variable values
 
-        return eval_function(merged_input, ode_problem, rfft_plan)
+        return eval_function(merged_input, ode_problem)
     end
 
     return fitness_function
@@ -179,8 +179,6 @@ Runs the genetic algorithm, returning the `GAResult` type.
 """
 function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_population(ga_problem.constraints, 10000); 
                 abstol=1e-4, reltol=1e-2, successive_f_tol = 4, iterations=5, parallelization = :thread, show_trace=true) where GP <: GAProblem
-    # blas_threads = BLAS.get_num_threads()
-    # BLAS.set_num_threads(1)
 
     population_size = length(population)
 
@@ -219,8 +217,6 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
     #* Run the optimization.
     result = Evolutionary.optimize(fitness_function, zeros(3,population_size), boxconstraints, mthd, population, opts)
 
-    # BLAS.set_num_threads(blas_threads)
-    # return result
     return GAResults(result, ga_problem.constraints)
 end
 #> END

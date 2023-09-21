@@ -67,7 +67,7 @@ end
 
 #<< FITNESS FUNCTION ##
 """Core fitness function logic to be plugged into eval_fitness wrapper, sums AP2 membrane species before calling FitnessFunction"""
-function FitnessFunction(sol::OS, plan:FT) where {OS <: ODESolution, FT<:FFTW.rFFTWPlan}
+function FitnessFunction(sol::OS) where {OS <: ODESolution}
     Amem_sol = map(sum, sol.u) #* sum all AP2 species on the membrane to get the amplitude of the solution
     FitnessFunction(Amem_sol, sol.t, plan)
 end
@@ -119,21 +119,21 @@ end
 
 #< FITNESS FUNCTION CALLERS AND WRAPPERS ## 
 """Evaluate the fitness of an individual with new parameters"""
-function eval_param_fitness(params::Vector{Float64},  prob::OP, plan:FT; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem, FT<:FFTW.rFFTWPlan}
+function eval_param_fitness(params::Vector{Float64},  prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
     #* remake with new parameters
     new_prob = remake(prob, p=params)
-    return solve_for_fitness_peramp(new_prob, idx, plan)
+    return solve_for_fitness_peramp(new_prob, idx)
 end
 
 """Evaluate the fitness of an individual with new initial conditions"""
-function eval_ic_fitness(initial_conditions::Vector{Float64}, prob::OP, plan:FT; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem, FT<:FFTW.rFFTWPlan}
+function eval_ic_fitness(initial_conditions::Vector{Float64}, prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
     #* remake with new initial conditions
     new_prob = remake(prob, u0=initial_conditions)
-    return solve_for_fitness_peramp(new_prob, idx, plan)
+    return solve_for_fitness_peramp(new_prob, idx)
 end
 
 """Evaluate the fitness of an individual with new initial conditions and new parameters"""
-function eval_all_fitness(inputs::Vector{Float64}, prob::OP, plan:FT; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem, FT<:FFTW.rFFTWPlan}
+function eval_all_fitness(inputs::Vector{Float64}, prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
     newp = @view inputs[1:13]
     newu = @view inputs[14:end]
 
@@ -145,7 +145,7 @@ function eval_all_fitness(inputs::Vector{Float64}, prob::OP, plan:FT; idx::Vecto
 
     #* remake with new initial conditions and new parameters
     new_prob = remake(prob; p = newp, u0= newu)
-    return solve_for_fitness_peramp(new_prob, idx, plan)
+    return solve_for_fitness_peramp(new_prob, idx)
 end
 
 """Takes in an ODEProblem and returns solution"""
@@ -159,12 +159,12 @@ function solve_odeprob(prob::OP, idx) where OP <: ODEProblem
 end
 
 """Utility function to call ODE solver and return the fitness and period/amplitude"""
-function solve_for_fitness_peramp(prob::OP, idx, plan::FT) where {OP <: ODEProblem, FT<:FFTW.rFFTWPlan}
+function solve_for_fitness_peramp(prob::OP, idx) where {OP <: ODEProblem}
 
     sol = solve_odeprob(prob, idx)
 
     if sol.retcode == ReturnCode.Success
-        return FitnessFunction(sol, plan)
+        return FitnessFunction(sol)
     else
         return [0.0, 0.0, 0.0]
     end
