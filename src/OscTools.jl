@@ -27,7 +27,7 @@ module OscTools
     # import the cost function and other evaluation functions
     include("api/EvaluationFunctions.jl")
     export FitnessFunction, getFrequencies, getSTD, getDif, 
-            getPerAmp, solve_for_fitness_peramp, eval_param_fitness, eval_ic_fitness, eval_all_fitness
+            getPerAmp, solve_odeprob, solve_for_fitness_peramp, eval_param_fitness, eval_ic_fitness, eval_all_fitness
 
     # import the constraint types and tools
     include("api/ConstraintSetTools.jl")

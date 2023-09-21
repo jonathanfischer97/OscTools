@@ -30,7 +30,7 @@ end
 
 #<< PERIOD AND AMPLITUDE FUNCTIONS ##
 """Calculates the period and amplitude of each individual in the population"""
-function getPerAmp(sol::ODESolution)
+function getPerAmp(sol::OS) where OS <: ODESolution
 
     Amem_sol = sol[6,:] + sol[9,:] + sol[10,:]+ sol[11,:] + sol[12,:]+ sol[15,:] + sol[16,:]
 
@@ -50,29 +50,37 @@ function getPerAmp(solt, indx_max::Vector{Int}, vals_max::Vector{Float64}, indx_
 end
 #> END OF PERIOD AND AMPLITUDE FUNCTIONS ##
 
-
-
-
-
-#<< FITNESS FUNCTION ##
-"""Core fitness function logic to be plugged into eval_fitness wrapper, sums AP2 membrane species before calling FitnessFunction"""
-function FitnessFunction(sol::ODESolution)
-    Amem_sol = map(sum, sol.u) #* sum all AP2 species on the membrane to get the amplitude of the solution
-    FitnessFunction(Amem_sol, sol.t)
-end
-
-"""
-Core fitness function logic that takes in the solution and time array and returns the [fitness, period, amplitude]
-"""
-function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
-
+#< HEURISTICS ##
+function is_steadystate(solu::Vector{Float64}, solt::Vector{Float64})
     tstart = cld(length(solt),10) 
 
     #* Check if last tenth of the solution array is steady state
     testwindow = @view solu[end-tstart:end]
     if std(testwindow; mean=mean(testwindow)) < 0.01  
-        return [0.0, 0.0, 0.0]
+        return true
+    else
+        return false
     end 
+end
+
+
+
+#<< FITNESS FUNCTION ##
+"""Core fitness function logic to be plugged into eval_fitness wrapper, sums AP2 membrane species before calling FitnessFunction"""
+function FitnessFunction(sol::OS, plan:FT) where {OS <: ODESolution, FT<:FFTW.rFFTWPlan}
+    Amem_sol = map(sum, sol.u) #* sum all AP2 species on the membrane to get the amplitude of the solution
+    FitnessFunction(Amem_sol, sol.t, plan)
+end
+
+"""
+Core fitness function logic that takes in the solution and time array and returns the [fitness, period, amplitude]
+"""
+function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}, plan:FT) where {FT<:FFTW.rFFTWPlan}
+
+    #* Check if the solution is steady state
+    if is_steadystate(solu, solt)
+        return [0.0, 0.0, 0.0]
+    end
 
     #* Get the indexes of the peaks in the time domain
     indx_max, vals_max = findextrema(solu; height = 1e-2, distance = 5)
@@ -84,7 +92,7 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
     end
     
     #* Get the rfft of the solution and normalize it
-    fftData = getFrequencies(solu) |> normalize_time_series!
+    fftData = getFrequencies(solu, plan) |> normalize_time_series!
 
     #* get the indexes of the peaks in the fft
     fft_peakindexes, fft_peakvals = findextrema(fftData; height = 1e-2, distance = 2) 
@@ -111,21 +119,21 @@ end
 
 #< FITNESS FUNCTION CALLERS AND WRAPPERS ## 
 """Evaluate the fitness of an individual with new parameters"""
-function eval_param_fitness(params::Vector{Float64},  prob::OT; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where OT <: ODEProblem
+function eval_param_fitness(params::Vector{Float64},  prob::OP, plan:FT; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem, FT<:FFTW.rFFTWPlan}
     #* remake with new parameters
     new_prob = remake(prob, p=params)
-    return solve_for_fitness_peramp(new_prob, idx)
+    return solve_for_fitness_peramp(new_prob, idx, plan)
 end
 
 """Evaluate the fitness of an individual with new initial conditions"""
-function eval_ic_fitness(initial_conditions::Vector{Float64}, prob::OT; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where OT <: ODEProblem
+function eval_ic_fitness(initial_conditions::Vector{Float64}, prob::OP, plan:FT; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem, FT<:FFTW.rFFTWPlan}
     #* remake with new initial conditions
     new_prob = remake(prob, u0=initial_conditions)
-    return solve_for_fitness_peramp(new_prob, idx)
+    return solve_for_fitness_peramp(new_prob, idx, plan)
 end
 
 """Evaluate the fitness of an individual with new initial conditions and new parameters"""
-function eval_all_fitness(inputs::Vector{Float64}, prob::OT; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where OT <: ODEProblem
+function eval_all_fitness(inputs::Vector{Float64}, prob::OP, plan:FT; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem, FT<:FFTW.rFFTWPlan}
     newp = @view inputs[1:13]
     newu = @view inputs[14:end]
 
@@ -137,25 +145,32 @@ function eval_all_fitness(inputs::Vector{Float64}, prob::OT; idx::Vector{Int} = 
 
     #* remake with new initial conditions and new parameters
     new_prob = remake(prob; p = newp, u0= newu)
-    return solve_for_fitness_peramp(new_prob, idx)
+    return solve_for_fitness_peramp(new_prob, idx, plan)
 end
 
-
-"""Utility function to solve the ODEProblem and return the fitness and period/amplitude"""
-function solve_for_fitness_peramp(prob::OT, idx) where OT <: ODEProblem
+"""Takes in an ODEProblem and returns solution"""
+function solve_odeprob(prob::OP, idx) where OP <: ODEProblem
     #* calculate first 10% of the tspan
     tstart = prob.tspan[2] / 10
 
     #* solve the ODE and only save the last 90% of the solution
     savepoints = tstart:0.1:prob.tspan[2]
-    sol = solve(prob, AutoTsit5(Rodas5P()), saveat=savepoints, save_idxs=idx, verbose=false, maxiters=1e6)
+    solve(prob, AutoTsit5(Rodas5P()), saveat=savepoints, save_idxs=idx, verbose=false, maxiters=1e6)
+end
+
+"""Utility function to call ODE solver and return the fitness and period/amplitude"""
+function solve_for_fitness_peramp(prob::OP, idx, plan::FT) where {OP <: ODEProblem, FT<:FFTW.rFFTWPlan}
+
+    sol = solve_odeprob(prob, idx)
 
     if sol.retcode == ReturnCode.Success
-        return FitnessFunction(sol)
+        return FitnessFunction(sol, plan)
     else
         return [0.0, 0.0, 0.0]
     end
 end
+
+
 
 """
 ## Calculate tspan based on the slowest reaction rate.\n
