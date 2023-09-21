@@ -51,4 +51,8 @@ module OscTools
     include("api/ClusteringTools.jl")
     export population_to_matrix, kmeans, elbow_method, df_to_matrix
 
+    #include testing functions
+    include("api/TestingFunctions.jl")
+    export test4fixedGA
+
 end

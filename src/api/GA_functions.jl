@@ -140,7 +140,7 @@ struct GAResults
 end
 
 """Constructor for a GAResults object, also stores the indices of each generation"""
-function GAResults(result::Evolutionary.EvolutionaryOptimizationResults{GA, Tx, Tf}, constraintset::ConstraintSet) where {Tx, Tf}
+function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constraintset::ConstraintSet) 
     numpoints = sum(length, (gen.metadata["fitvals"] for gen in result.trace))
 
     indlength = activelength(constraintset)

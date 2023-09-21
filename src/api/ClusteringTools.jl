@@ -1,6 +1,7 @@
 "Converts the population of a GAResults object to a matrix."
 function population_to_matrix(results::GAResults)
-    return hcat(results.population...)'
+    # return hcat(results.population...)'
+    stack(results.population)
 end
 
 "Performs k-means clustering on a GAResults object."

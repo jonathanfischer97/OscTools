@@ -69,7 +69,7 @@ end
 """Core fitness function logic to be plugged into eval_fitness wrapper, sums AP2 membrane species before calling FitnessFunction"""
 function FitnessFunction(sol::OS) where {OS <: ODESolution}
     Amem_sol = map(sum, sol.u) #* sum all AP2 species on the membrane to get the amplitude of the solution
-    FitnessFunction(Amem_sol, sol.t, plan)
+    FitnessFunction(Amem_sol, sol.t)
 end
 
 """
@@ -101,7 +101,7 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {F
     end
     
     #* Get the rfft of the solution and normalize it
-    fftData = getFrequencies(solu, plan) |> normalize_time_series!
+    fftData = getFrequencies(solu) |> normalize_time_series!
 
     #* get the indexes of the peaks in the fft
     fft_peakindexes, fft_peakvals = findextrema(fftData; height = 1e-2, distance = 2) 

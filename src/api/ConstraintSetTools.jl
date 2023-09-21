@@ -273,6 +273,11 @@ function set_fixed_values!(fixed_constraintranges::Vector{ConstraintRange}, valu
     return fixed_constraintranges
 end
 
+function set_fixed_values!(constraints::ConstraintSet, values...)
+    fixed_constraintranges = get_fixed_constraintranges(constraints)
+    return set_fixed_values!(fixed_constraintranges, values...)
+end
+
 """Unsets the fixed constraints according to symbol, resetting both the isfixed and fixed_value fields to default"""
 function unset_fixed_constraints!(constraints::ConstraintSet, fixednames::Vector{Symbol})
     for name in fixednames
