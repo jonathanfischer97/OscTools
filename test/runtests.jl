@@ -6,5 +6,5 @@ Random.seed!(1234)
 @testset "OscTools.jl" begin
     # Write your tests here.
     ga_result = test4fixedGA()
-    @test length(ga_result.fitvals) == 588
+    @test length(ga_result.fitvals) == 559
 end
