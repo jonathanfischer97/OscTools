@@ -17,7 +17,7 @@ function elbow_method(results::GAResults, kmax::Int)
 end
 
 function df_to_matrix(df::DataFrame, exclude_cols::Vector{Symbol})
-    return Matrix(df[:, Not(exclude_cols)])
+    return Matrix(df[:, Not(exclude_cols)]) |> transpose
 end
 
 function kmeans(df::DataFrame, k::Int; exclude_cols::Vector{Symbol} = Symbol[])
