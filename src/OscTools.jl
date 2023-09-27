@@ -45,7 +45,7 @@ module OscTools
 
     #include plotting utilities
     include("api/PlotUtils.jl")
-    export plotboth, plot_everything, plot_everything_from_csv_indir
+    export plotsol, plotboth, plot_everything, plot_everything_from_csv_indir
 
     #include clustering utilities
     include("api/ClusteringTools.jl")

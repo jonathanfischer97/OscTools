@@ -5,7 +5,7 @@
 #< Plotting utilities for testing
 # Function to apply default settings to a plot
 function apply_default_settings(p)
-        plot!(p, lw=2, size=(1000, 600), dpi=200,
+        plot!(p, lw=3, size=(1000, 600), dpi=200,
               bottom_margin=12px, left_margin=16px, top_margin=10px, right_margin=8px)
         return p
 end
