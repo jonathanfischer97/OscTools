@@ -6,7 +6,11 @@ function make_rfft_plan(ode_problem::OP) where OP <: ODEProblem
 end
 
 #< FITNESS FUNCTION CONSTRUCTOR ##
-"""Multithreaded fitness function, allocated a merged array for each thread"""
+"""
+    make_fitness_function_threaded(constraints::ConstraintSet, ode_problem::OP, eval_function::FT)
+
+Multithreaded fitness function, allocated a merged array for each thread
+    """
 function make_fitness_function_threaded(constraints::CT, ode_problem::OP, eval_function::FT) where {CT<:ConstraintSet, OP<:ODEProblem, FT<:Function}
     fixed_idxs = get_fixed_indices(constraints)
     fixed_values = [constraints[i].fixed_value for i in fixed_idxs]
@@ -121,7 +125,11 @@ end
 #> END ##
 
 #< MISCELLANEOUS FUNCTIONS ##
-"""Defines logspace function for sampling parameters and initial conditions"""
+"""
+    logrange(start, stop, length::Int)
+
+Defines logspace function for sampling parameters and initial conditions
+    """
 logrange(start, stop, length::Int) = exp10.(collect(range(start=log10(start), stop=log10(stop), length=length)))
 #> END ##
 
@@ -175,6 +183,8 @@ end
 
 #< RUN GENETIC ALGORITHM OPTIMIZATION ##
 """
+    run_GA(ga_problem::GAProblem, population::Vector{Vector{Float64}} = generate_population(ga_problem.constraints, 10000); abstol=1e-4, reltol=1e-2, successive_f_tol = 4, iterations=5, parallelization = :thread, show_trace=true)
+    
 Runs the genetic algorithm, returning the `GAResult` type.
 """
 function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_population(ga_problem.constraints, 10000); 
