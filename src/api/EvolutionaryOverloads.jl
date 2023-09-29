@@ -163,14 +163,15 @@ function Evolutionary.value!(obj::EvolutionaryObjective{TC,TF,TX,Val{:thread}},
                                 F::AbstractMatrix, xs::Vector{TX}) where {TC,TF,TX <: AbstractVector}
     n = length(xs)
     # @info "Evaluating $(n) individuals in parallel"
-    Threads.@threads for i in 1:n
+    # @info size(F)
+    Threads.@threads :static for i in 1:n
         # @info length(xs[i])
         # F[:,i] .= Evolutionary.value(obj, xs[i])  #* evaluate the fitness, period, and amplitude for each individual
         fv = view(F, :, i)
         # @info length(fv)
         value(obj, fv, xs[i])
     end
-    F
+    
 end
 
 """Same value! function but with serial eval"""
