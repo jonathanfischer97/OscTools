@@ -50,7 +50,7 @@ module OscTools
 
     #include clustering utilities
     include("api/ClusteringTools.jl")
-    export population_to_matrix, get_kmeans, df_to_matrix, identify_fixed_columns, get_optimal_clusters, optimal_kmeans_clusters
+    export population_to_matrix, get_kmeans, df_to_matrix, identify_fixed_columns, get_optimal_clusters
 
     #include testing functions
     include("api/TestingFunctions.jl")
