@@ -11,7 +11,7 @@ end
     kmeans(results::GAResults, clusters::Int)
 Performs k-means clustering on the population of a GAResults object, returns a ClusteringResult object.
 """
-function kmeans(results::GAResults, k::Int)
+function get_kmeans(results::GAResults, k::Int)
     data_matrix = population_to_matrix(results)
     return kmeans(data_matrix, k)
 end
@@ -28,7 +28,7 @@ end
     kmeans(df::DataFrame, clusters::Int, exclude_cols::Vector{Symbol})
 Performs k-means clustering on a DataFrame while excluding the fixed columns, returns a ClusteringResult object.
 """
-function kmeans(df::DataFrame, k::Int; exclude_cols::Vector{Symbol} = Symbol[])
+function get_kmeans(df::DataFrame, k::Int; exclude_cols::Vector{Symbol} = Symbol[])
     data_matrix = df_to_matrix(df, exclude_cols)
     return kmeans(data_matrix, k)
 end
@@ -71,7 +71,7 @@ end
     optimal_kmeans_clusters(data_matrix::AbstractMatrix{Float64}, max_k::Int)
 Determine optimal cluster count using silhouette method with multithreading.
 """
-function optimal_kmeans_clusters(data_matrix::AbstractMatrix{Float64}, max_k::Int)
+function get_optimal_clusters(data_matrix::AbstractMatrix{Float64}, max_k::Int)
     best_k = 2
     best_score = -Inf
 
