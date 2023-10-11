@@ -62,9 +62,9 @@ function silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sampl
     sampled_labels = labels[idx]
     
     dist_matrix = pairwise(Euclidean(), sampled_X, sampled_X)
-    silhouettes = silhouettes(sampled_labels, dist_matrix)
+    sils = silhouettes(sampled_labels, dist_matrix)
     
-    return mean(silhouettes)
+    return mean(sils)
 end
 
 """
