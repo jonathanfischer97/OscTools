@@ -79,7 +79,7 @@ function optimal_kmeans_clusters(data_matrix::AbstractMatrix{Float64}, max_k::In
     scores = zeros(max_k - 1)
 
     # Iterate through k values and compute silhouette score in parallel
-    @threads for k in 2:max_k
+    Threads.@threads for k in 2:max_k
         result = kmeans(data_matrix, k)
         score = silhouette_score(data_matrix, assignments(result))
         scores[k - 1] = score # Store the score in the array
