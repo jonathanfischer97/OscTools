@@ -9,7 +9,8 @@ module OscTools
     using ProgressMeter
     using Plots#, RecipesBase
     using ColorSchemes, Plots.PlotMeasures
-    import Clustering: kmeans
+    import Clustering: kmeans, assignments, silhouettes
+    using Distances
 
 
 

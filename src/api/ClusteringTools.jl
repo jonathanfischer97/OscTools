@@ -62,7 +62,7 @@ function silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sampl
     sampled_labels = labels[idx]
     
     dist_matrix = pairwise(Euclidean(), sampled_X, sampled_X)
-    silhouettes = Clustering.silhouettes(sampled_labels, dist_matrix)
+    silhouettes = silhouettes(sampled_labels, dist_matrix)
     
     return mean(silhouettes)
 end
