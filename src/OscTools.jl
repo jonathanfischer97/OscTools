@@ -49,7 +49,7 @@ module OscTools
 
     #include clustering utilities
     include("api/ClusteringTools.jl")
-    export population_to_matrix, kmeans, elbow_method, df_to_matrix
+    export population_to_matrix, kmeans, df_to_matrix, identify_fixed_columns
 
     #include testing functions
     include("api/TestingFunctions.jl")
