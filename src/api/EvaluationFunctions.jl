@@ -164,7 +164,7 @@ function solve_odeprob(prob::OP, idx) where OP <: ODEProblem
 
     #* solve the ODE and only save the last 90% of the solution
     savepoints = tstart:0.1:prob.tspan[2]
-    solve(prob, AutoTsit5(Rodas5P()), saveat=savepoints, save_idxs=idx, verbose=false, maxiters=1e6)
+    solve(prob, Rodas5P(), saveat=savepoints, save_idxs=idx, verbose=false, maxiters=1e6)
 end
 
 """Utility function to call ODE solver and return the fitness and period/amplitude"""

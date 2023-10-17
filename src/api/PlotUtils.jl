@@ -149,7 +149,7 @@ function plotboth(sol::ODESolution)
 
         Amem = calculate_Amem(trimsol)
 
-        cost, per, amp = CostFunction(Amem, trimsol.t)
+        cost, per, amp = FitnessFunction(Amem, trimsol.t)
         amp_percentage = amp/sol[4,1]
 
         solplot = plotsol(sol)
