@@ -20,21 +20,25 @@ function make_fitness_function_threaded(constraints::CT, ode_problem::OP, eval_f
     non_fixed_indices = setdiff(1:n_total, fixed_idxs)
 
     # Create a ThreadLocal array
-    merged_inputs = [zeros(Float64, n_total+12) for _ in 1:Threads.nthreads()]
+    # merged_inputs = [zeros(Float64, n_total+12) for _ in 1:Threads.nthreads()]
 
     # Fill in the fixed values
-    for input in merged_inputs
-        input[fixed_idxs] .= fixed_values  # Fill in fixed values
-    end
+    # for input in merged_inputs
+    #     input[fixed_idxs] .= fixed_values 
+    # end
 
-    # rfft_plan = make_rfft_plan(ode_problem)
+    merged_input = zeros(Float64, n_total+12)
+
+    merged_input[fixed_idxs] .= fixed_values  # Fill in fixed values
+
 
     function fitness_function(input::Vector{Float64})
         # Get the merged_input array for the current thread
-        merged_input = merged_inputs[Threads.threadid()]
-        merged_input[non_fixed_indices] .= input  # Fill in variable values
+        # merged_input = merged_inputs[Threads.threadid()]
+        local_merged_input = copy(merged_input) 
+        local_merged_input[non_fixed_indices] .= input  # Fill in variable values
 
-        return eval_function(merged_input, ode_problem)
+        return eval_function(local_merged_input, ode_problem)
     end
 
     return fitness_function
@@ -225,7 +229,7 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
     fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
 
     #* Run the optimization.
-    result = Evolutionary.optimize(fitness_function, zeros(3,population_size), boxconstraints, mthd, population, opts)
+    result = Evolutionary.optimize(fitness_function, zeros(3), boxconstraints, mthd, population, opts)
 
     return GAResults(result, ga_problem.constraints)
 end

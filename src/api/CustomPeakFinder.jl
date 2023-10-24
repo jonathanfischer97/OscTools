@@ -1,20 +1,20 @@
 #< CUSTOM PEAK FINDER
-function findextrema(x::Vector{T}; 
+function findmaxpeaks(x; 
                     height::Union{Nothing,<:Real,NTuple{2,<:Real}}=nothing,
                     distance::Union{Nothing,Int}=nothing,
-                    find_maxima::Bool=true) where {T<:Real}
+                    find_maxima::Bool=true) #where {T<:Real}
     midpts = Vector{Int}(undef, 0)
     i = 2
     imax = length(x)
 
     while i < imax
-        if (find_maxima && x[i-1] < x[i]) || (!find_maxima && x[i-1] > x[i])
+        if (find_maxima && x[i-1] < x[i]) #|| (!find_maxima && x[i-1] > x[i])
             iahead = i + 1
             while (iahead < imax) && (x[iahead] == x[i])
                 iahead += 1
             end
 
-            if (find_maxima && x[iahead] < x[i]) || (!find_maxima && x[iahead] > x[i])
+            if (find_maxima && x[iahead] < x[i]) #|| (!find_maxima && x[iahead] > x[i])
                 push!(midpts, (i + iahead - 1) ÷ 2)
                 i = iahead
             end
@@ -41,6 +41,67 @@ function findextrema(x::Vector{T};
 
     extrema_indices, extrema_heights
 end
+
+"""
+    findextrema(x::Vector{T}; height::Union{Nothing,<:Real,NTuple{2,<:Real}}=nothing, distance::Union{Nothing,Int}=nothing)
+
+Finds the maxima and minima values of a vector, along with their indices. The height and distance filters can be applied to the maxima and minima.
+"""
+function findextrema(x::Vector{T};
+                     height::Union{Nothing,<:Real,NTuple{2,<:Real}}=nothing,
+                     distance::Union{Nothing,Int}=nothing) where {T<:Real}
+    maxima_indices = Vector{Int}(undef, 0)
+    minima_indices = Vector{Int}(undef, 0)
+    i = 2
+    imax = length(x)
+
+    while i < imax
+        iahead = i + 1
+        while (iahead < imax) && (x[iahead] == x[i])
+            iahead += 1
+        end
+
+        # Check for maxima
+        if x[i-1] < x[i] && x[iahead] < x[i]
+            push!(maxima_indices, (i + iahead - 1) ÷ 2)
+        end
+
+        # Check for minima
+        if x[i-1] > x[i] && x[iahead] > x[i]
+            push!(minima_indices, (i + iahead - 1) ÷ 2)
+        end
+
+        i = iahead
+    end
+
+    # Apply height and distance filters to both maxima and minima
+    filter_extrema!(x, maxima_indices, height, distance)
+    filter_extrema!(x, minima_indices, height, distance)
+
+    maxima_heights = x[maxima_indices]
+    minima_heights = x[minima_indices]
+
+    return maxima_indices, maxima_heights, minima_indices, minima_heights
+end
+
+
+function filter_extrema!(x::Vector{T}, extrema::Vector{Int}, height, distance) where {T<:Real}
+    # Filter by height
+    if !isnothing(height)
+        hmin, hmax = height isa Number ? (height, nothing) : height
+        keepheight = (hmin === nothing || x[extrema] .>= hmin) .& (hmax === nothing || x[extrema] .<= hmax)
+        extrema = extrema[keepheight]
+    end
+
+    # Filter by distance
+    if !isnothing(distance)
+        priority = x[extrema]  # Priority based on height
+        keep = selectbypeakdistance(extrema, priority, distance)
+        extrema = extrema[keep]
+    end
+end
+
+
 
 function selectbypeakdistance(pkindices, priority, distance)
     npkindices = length(pkindices)

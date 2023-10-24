@@ -1,11 +1,12 @@
 #< COST FUNCTION HELPER FUNCTIONS ##
-"""Get summed difference of peaks in the frequency domain"""
+"""Get summed difference of the peak values from the FFT of the solution"""
 function getDif(peakvals::Vector{Float64})
-    length(peakvals) == 1 ? peakvals[1] : peakvals[1] - peakvals[end]
+    # length(peakvals) == 1 ? peakvals[1] : peakvals[1] - peakvals[end]
+    peakvals[1] - peakvals[end]
 end
 
-"""Get summed average standard deviation of peaks in the frequency domain"""
-function getSTD(fft_peakindxs::Vector{Int}, fft_arrayData::Vector{Float64}; window::Int =1) #get average standard deviation of fft peak indexes
+"""Get summed average standard deviation of peaks values from the FFT of the solution"""
+function getSTD(fft_peakindxs::Vector{Int}, fft_arrayData; window::Int =1) #get average standard deviation of fft peak indexes
     arrLen = length(fft_arrayData)
 
     #window = max(1,cld(arrLen,window_ratio)) #* window size is 1% of array length, or 1 if array length is less than 100
@@ -14,13 +15,29 @@ function getSTD(fft_peakindxs::Vector{Int}, fft_arrayData::Vector{Float64}; wind
     # return sum_std / length(fft_peakindxs) #* divide by number of peaks to get average std
 end 
 
-"""Return the FFT of a timeseries, will be half the length of the timeseries"""
-function getFrequencies(timeseries) 
-    abs.(rfft(timeseries)) ./ cld(length(timeseries), 2) #* normalize by length of timeseries
+"""
+    getFrequencies(timeseries)
+Return the real-valued FFT of a timeseries, will be half the length of the timeseries
+"""
+function getFrequencies(timeseries::Vector{Float64}) 
+    # rfft_result = rfft(@view timeseries[1:2:end])
+    rfft_result = rfft(timeseries)
+    norm_val = cld(length(timeseries), 2) #* normalize by length of timeseries
+    abs.(rfft_result) ./ norm_val
+end
+
+"""
+    getFrequencies!(fft_array, timeseries)
+Computes the real-valued FFT and returns it in-place to the preallocated fft_array, which is half the length of `timeseries`.
+"""
+function getFrequencies!(fft_array, timeseries::Vector{Float64}) 
+    rfft_result = rfft(timeseries[1:2:end])
+    norm_val = cld(length(timeseries), 2) #* normalize by length of timeseries
+    fft_array .= abs.(rfft_result) ./ norm_val
 end
 
 """Normalize FFT array in-place to have mean 0 and amplitude 1"""
-function normalize_time_series!(fftarray::Vector{Float64})
+function normalize_time_series!(fftarray)
     mu = mean(fftarray)
     amplitude = maximum(fftarray) - minimum(fftarray)
     fftarray .= (fftarray .- mu) ./ amplitude
@@ -32,10 +49,10 @@ end
 """Calculates the period and amplitude of each individual in the population"""
 function getPerAmp(sol::OS) where OS <: ODESolution
 
-    Amem_sol = sol[6,:] + sol[9,:] + sol[10,:]+ sol[11,:] + sol[12,:]+ sol[15,:] + sol[16,:]
+    Amem_sol = @views sol[6,:] + sol[9,:] + sol[10,:]+ sol[11,:] + sol[12,:]+ sol[15,:] + sol[16,:]
 
-    indx_max, vals_max = findextrema(Amem_sol; height = 1e-2, distance = 5)
-    indx_min, vals_min = findextrema(Amem_sol; height = 0.0, distance = 5, find_maxima=false)
+    indx_max, vals_max, indx_min, vals_min = findextrema(Amem_sol; height = 1e-2, distance = 5)
+    # indx_min, vals_min = findextrema(Amem_sol; height = 0.0, distance = 5, find_maxima=false)
     return getPerAmp(sol.t, indx_max, vals_max, indx_min, vals_min)
 end
 
@@ -46,16 +63,21 @@ function getPerAmp(solt, indx_max::Vector{Int}, vals_max::Vector{Float64}, indx_
     pers = (solt[indx_max[i+1]] - solt[indx_max[i]] for i in 1:(length(indx_max)-1))
     amps = (vals_max[i] - vals_min[i] for i in 1:min(length(indx_max), length(indx_min)))
 
-    return mean(pers), mean(amps) .|> abs 
+    return mean(pers), mean(amps) #.|> abs 
 end
 #> END OF PERIOD AND AMPLITUDE FUNCTIONS ##
 
 #< HEURISTICS ##
+"""
+    is_steadystate(solu::Vector{Float64}, solt::Vector{Float64})
+
+Checks if the last tenth of the solution array is steady state
+"""
 function is_steadystate(solu::Vector{Float64}, solt::Vector{Float64})
     tstart = cld(length(solt),10) 
 
     #* Check if last tenth of the solution array is steady state
-    testwindow = @view solu[end-tstart:end]
+    testwindow = solu[end-tstart:end]
     if std(testwindow; mean=mean(testwindow)) < 0.01  
         return true
     else
@@ -92,8 +114,8 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {F
     end
 
     #* Get the indexes of the peaks in the time domain
-    indx_max, vals_max = findextrema(solu; height = 1e-2, distance = 5)
-    indx_min, vals_min = findextrema(solu; height = 0.0, distance = 5, find_maxima=false)
+    indx_max, vals_max, indx_min, vals_min = findextrema(solu; height = 1e-2, distance = 5)
+    # indx_min, vals_min = findextrema(solu; height = 0.0, distance = 5, find_maxima=false)
 
     #* if there is no signal in the time domain, return 0.0s
     if length(indx_max) < 2 || length(indx_min) < 2 
@@ -101,10 +123,11 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {F
     end
     
     #* Get the rfft of the solution and normalize it
-    fftData = getFrequencies(solu) |> normalize_time_series!
+    fftData = @view solu[1:cld(length(solu),4)] 
+    fftData = getFrequencies!(fftData, solu) |> normalize_time_series!
 
     #* get the indexes of the peaks in the fft
-    fft_peakindexes, fft_peakvals = findextrema(fftData; height = 1e-2, distance = 2) 
+    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData; height = 1e-2, distance = 2) 
     # @info length(fft_peakindexes)
 
     #* if there is no signal in the frequency domain, return 0.0s

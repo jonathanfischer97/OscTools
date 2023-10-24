@@ -9,11 +9,11 @@ mutable struct CustomGAState <: Evolutionary.AbstractOptimizerState
     N::Int  #* number of elements in an individual
     eliteSize::Int  #* number of individuals that are copied to the next generation
     fittestValue::Float64  #* fitness of the fittest individual
-    # fitvals::Vector{Float64}  #* fitness values of the population
-    fitvals::Matrix{Float64}
     fittestInd::Vector{Float64}  #* fittest individual
-    # periods::Vector{Float64} #* periods of the individuals
-    # amplitudes::Vector{Float64} #* amplitudes of the individuals
+    fitvals::Vector{Float64}  #* fitness values of the population
+    periods::Vector{Float64} #* periods of the individuals
+    amplitudes::Vector{Float64} #* amplitudes of the individuals
+    # valarray::Matrix{Float64}
 end  
 Evolutionary.value(s::CustomGAState) = s.fittestValue #return the fitness of the fittest individual
 Evolutionary.minimizer(s::CustomGAState) = s.fittestInd #return the fittest individual
@@ -21,13 +21,16 @@ Evolutionary.minimizer(s::CustomGAState) = s.fittestInd #return the fittest indi
 
 """Trace override function"""
 function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::GA, options) 
-    oscillatory_population_idxs = findall(fit -> fit > 0.0, view(state.fitvals, 1, :)) #find the indices of the oscillatory individuals
+    oscillatory_population_idxs = findall(fit -> fit > 0.0, state.fitvals) #find the indices of the oscillatory individuals
 
     record["population"] = deepcopy(population[oscillatory_population_idxs])
-    fitvals = copy(view(state.fitvals,:,oscillatory_population_idxs))
-    record["fitvals"] = fitvals[1,:]
-    record["periods"] = fitvals[2,:]
-    record["amplitudes"] = fitvals[3,:]
+    # valarray = copy(view(state.valarray,:,oscillatory_population_idxs))
+    # record["fitvals"] = valarray[1,:]
+    # record["periods"] = valarray[2,:]
+    # record["amplitudes"] = valarray[3,:]
+    record["fitvals"] = state.fitvals[oscillatory_population_idxs]
+    record["periods"] = state.periods[oscillatory_population_idxs]
+    record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
 end
 
 """Show override function to prevent printing large arrays"""
@@ -58,36 +61,40 @@ end
 function Evolutionary.initial_state(method::GA, options, objfun, population::Vector{Vector{Float64}})
 
     N = length(first(population))
-    # fitvals = zeros(Float64, method.populationSize)
+    # output_array = zeros(Float64, 3, method.populationSize)
+
+
+    fitvals = zeros(Float64, method.populationSize)
+    periods = similar(fitvals)
+    amplitudes = similar(fitvals)
     
-    # periods = zeros(Float64, method.populationSize)
-    # amplitudes = zeros(Float64, method.populationSize)
+
     # @info "Initializing GA state"
-    output_array = zeros(Float64, 3, method.populationSize)
 
     #* setup state values
     eliteSize = isa(method.ɛ, Int) ? method.ɛ : round(Int, method.ɛ * method.populationSize)
 
     #* Evaluate population fitness, period and amplitude
-    # Evolutionary.value!(objfun, fitvals, population, periods, amplitudes)
-    Evolutionary.value!(objfun, output_array, population)
+    Evolutionary.value!(objfun, fitvals, periods, amplitudes, population)
+    # Evolutionary.value!(objfun, output_array, population)
 
 
-    # maxfit, fitidx = findmax(fitvals)
-    maxfit, fitidx = findmax(view(output_array,1,:))
+    maxfit, fitidx = findmax(fitvals)
+    # maxfit, fitidx = findmax(output_array[1,:])
 
     #* setup initial state
-    # return CustomGAState(N, eliteSize, maxfit, fitvals, copy(population[fitidx]), periods, amplitudes)
-    return CustomGAState(N, eliteSize, maxfit, output_array, copy(population[fitidx]))
+    return CustomGAState(N, eliteSize, maxfit, copy(population[fitidx]), fitvals, periods, amplitudes)
+    # return CustomGAState(N, eliteSize, maxfit, copy(population[fitidx]), output_array)
 end
 
-function Evolutionary.evaluate!(objfun, fitvals, population::Vector{Vector{Float64}}, constraints)
+function Evolutionary.evaluate!(objfun, population::Vector{Vector{Float64}}, fitvals, periods, amplitudes)
 
     #* calculate fitness of the population
-    Evolutionary.value!(objfun, fitvals, population)
+    Evolutionary.value!(objfun, fitvals, periods, amplitudes, population)
+    # Evolutionary.value!(objfun, output_array, population)
 
     #* apply penalty to fitness
-    Evolutionary.penalty!(fitvals, constraints, population)
+    # Evolutionary.penalty!(fitvals, constraints, population)
 end
 
 """Update state function that captures additional data from the objective function"""
@@ -97,17 +104,19 @@ function Evolutionary.update_state!(objfun, constraints, state::CustomGAState, p
     rng = options.rng
     offspring = similar(parents)
 
-    fitness_vals = view(state.fitvals, 1, :)
+    # fitness_vals = view(state.fitvals, 1, :)
 
     #* select offspring
-    selected = method.selection(fitness_vals, populationSize, rng=rng)
+    selected = method.selection(state.fitvals, populationSize, rng=rng)
+    # selected = method.selection(state.valarray[1,:], populationSize, rng=rng)
 
     #* perform mating
     offspringSize = populationSize - state.eliteSize
     Evolutionary.recombine!(offspring, parents, selected, method, offspringSize, rng=rng)
 
     #* Elitism (copy population individuals before they pass to the offspring & get mutated)
-    fitidxs = sortperm(fitness_vals)
+    fitidxs = sortperm(state.fitvals)
+    # fitidxs = sortperm(state.valarray[1,:])
     for i in 1:state.eliteSize
         subs = offspringSize+i
         offspring[subs] = copy(parents[fitidxs[i]])
@@ -117,14 +126,16 @@ function Evolutionary.update_state!(objfun, constraints, state::CustomGAState, p
     Evolutionary.mutate!(offspring, method, constraints, rng=rng)
 
     #* calculate fitness and extradata of the population
-    # Evolutionary.evaluate!(objfun, state.fitvals, offspring, state.periods, state.amplitudes, constraints)
-    Evolutionary.evaluate!(objfun, state.fitvals, offspring, constraints)
+    Evolutionary.evaluate!(objfun, offspring, state.fitvals, state.periods, state.amplitudes)
+    # Evolutionary.evaluate!(objfun, offspring, state.valarray)
 
 
     #* select the best individual
-    _, fitidx = findmax(fitness_vals)
+    _, fitidx = findmax(state.fitvals)
+    # _, fitidx = findmax(state.valarray[1,:])
     state.fittestInd = offspring[fitidx]
-    state.fittestValue = fitness_vals[fitidx]
+    state.fittestValue = state.fitvals[fitidx]
+    # state.fittestValue = state.valarray[1,fitidx]
     
     #* replace population
     parents .= offspring
@@ -142,7 +153,7 @@ end
 
 Constructor for an objective function object around the function `f` with initial parameter `x`, and objective value `F`.
 """
-function Evolutionary.EvolutionaryObjective(f::TC, x::Vector{Float64}, F::AbstractMatrix;
+function Evolutionary.EvolutionaryObjective(f::TC, x::Vector{Float64}, F::Vector{Float64};
                                eval::Symbol = :serial) where {TC}
     # @info "Using custom EvolutionaryObjective constructor"
     defval = Evolutionary.default_values(x)
@@ -152,35 +163,55 @@ function Evolutionary.EvolutionaryObjective(f::TC, x::Vector{Float64}, F::Abstra
 
     fn = (Fv,xv) -> (Fv .= f(xv))
     TN = typeof(fn)
+
+    # fn, TN = if F isa AbstractMatrix
+    #     ff = (Fv,xv) -> (Fv .= f(xv))
+    #     @info "in-place conversion"
+    #     ff, typeof(ff)
+    # else
+    #     @info "no in-place conversion"
+    #     f, TC
+    # end
     EvolutionaryObjective{TN,TF,typeof(x),Val{eval}}(fn, F, defval, 0)
 end
 
 """Override of the multiobjective check"""
-Evolutionary.ismultiobjective(obj::EvolutionaryObjective{Function,Matrix{Float64},Vector{Float64},Val{:thread}}) = false
+Evolutionary.ismultiobjective(obj::EvolutionaryObjective{Function, AbstractArray, Vector{Float64}, Val{:thread}}) = false
 
 """Modified value! function from Evolutionary.jl to allow for multiple outputs from the objective function to be stored"""
-function Evolutionary.value!(obj::EvolutionaryObjective{TC,TF,TX,Val{:thread}},
-                                F::AbstractMatrix, xs::Vector{TX}) where {TC,TF,TX <: AbstractVector}
+function Evolutionary.value!(obj::EvolutionaryObjective{TC, Vector{Float64}, Vector{Float64},Val{:thread}},
+                                F::Vector{Float64}, P::Vector{Float64}, A::Vector{Float64}, xs::Vector{Vector{Float64}}) where {TC}
+    n = length(xs)
+    # @info "Evaluating F, P, A separately"
+    # @info "F type: $(typeof(F))"
+    Threads.@threads for i in 1:n
+        # @info length(xs[i])
+        F[i], P[i], A[i] = Evolutionary.value(obj, xs[i])  #* evaluate the fitness, period, and amplitude for each individual
+    end
+end
+
+function Evolutionary.value!(obj::EvolutionaryObjective{TC, Vector{Float64}, Vector{Float64}, Val{:thread}},
+                                F::Matrix{Float64}, xs::Vector{Vector{Float64}}) where {TC}
     n = length(xs)
     # @info "Evaluating $(n) individuals in parallel"
     # @info size(F)
-    Threads.@threads :static for i in 1:n
-        # @info length(xs[i])
-        # F[:,i] .= Evolutionary.value(obj, xs[i])  #* evaluate the fitness, period, and amplitude for each individual
+    @info "Evaluating F as single matrix"
+    @info "F type: $(typeof(F))"
+    Threads.@threads for i in 1:n
         fv = view(F, :, i)
-        # @info length(fv)
         value(obj, fv, xs[i])
     end
-    
 end
 
-"""Same value! function but with serial eval"""
-function Evolutionary.value!(obj::EvolutionaryObjective{TC,TF,TX,Val{:serial}},
-                                F::AbstractMatrix, xs::Vector{TX}) where {TC,TF, TX <: AbstractVector}
+"""Same value! function but with SERIAL eval"""
+function Evolutionary.value!(obj::EvolutionaryObjective{TC,TF,Vector{Float64},Val{:serial}},
+                                F::Matrix{Float64}, xs::Vector{Vector{Float64}}) where {TC,TF}
     n = length(xs)
     for i in 1:n
-        F[:,i] .= Evolutionary.value(obj, xs[i])  #* evaluate the fitness, period, and amplitude for each individual
+        # F[:,i] .= Evolutionary.value(obj, xs[i])  #* evaluate the fitness, period, and amplitude for each individual
         # println("Ind: $(xs[i]) fit: $(F[i]) per: $(P[i]) amp: $(A[i])")
+        fv = view(F, :, i)
+        value(obj, fv, xs[i])
     end
     F
 end

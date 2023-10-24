@@ -3,15 +3,15 @@
 
 Test tun a GA with fixed constraints and fixed values for the parameters DF, K, P, and A.
 """
-function test4fixedGA(popsize=10000)
+function test4fixedGA(popsize=10000; fixedsymbols = [:DF, :K, :P, :A], fixedvalues = [1000., 1.0, 1.0, 3.16])
     #* Set up the default GA problem
     ga_problem = GAProblem()
 
     #* Fixed some constraints 
-    set_fixed_constraints!(ga_problem.constraints, [:DF, :K, :P, :A])
+    set_fixed_constraints!(ga_problem.constraints, fixedsymbols)
 
     #* Assign the fixed values 
-    set_fixed_values!(ga_problem.constraints, 1000., 1.0, 1.0, 3.16)
+    set_fixed_values!(ga_problem.constraints, fixedvalues...)
 
     #* Set seed 
     Random.seed!(1234)
@@ -20,5 +20,7 @@ function test4fixedGA(popsize=10000)
     population = generate_population(ga_problem.constraints, popsize)
 
     #* Run the GA
-    run_GA(ga_problem, population)
+    ga_results = run_GA(ga_problem, population)
+
+    return make_ga_dataframe(ga_results, ga_problem.constraints)
 end
