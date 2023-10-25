@@ -1,9 +1,9 @@
 """
-    test1fixedGA(popsize=10000)
+    test4fixedGA(popsize=10000, fixedsymbols = [:DF, :K, :P, :A], fixedvalues = [1000., 1.0, 1.0, 3.16])
 
 Test tun a GA with fixed constraints and fixed values for the parameters DF, K, P, and A.
 """
-function test4fixedGA(popsize=10000; fixedsymbols = [:DF, :K, :P, :A], fixedvalues = [1000., 1.0, 1.0, 3.16])
+function test4fixedGA(popsize=10000, fixedsymbols = [:DF, :K, :P, :A], fixedvalues = [1000., 1.0, 1.0, 3.16]; kwargs...)
     #* Set up the default GA problem
     ga_problem = GAProblem()
 
@@ -20,7 +20,7 @@ function test4fixedGA(popsize=10000; fixedsymbols = [:DF, :K, :P, :A], fixedvalu
     population = generate_population(ga_problem.constraints, popsize)
 
     #* Run the GA
-    ga_results = run_GA(ga_problem, population)
+    ga_results = run_GA(ga_problem, population; kwargs...)
 
     return make_ga_dataframe(ga_results, ga_problem.constraints)
 end

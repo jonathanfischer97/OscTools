@@ -118,7 +118,7 @@ function generate_population!(population::Vector{Vector{Float64}}, constraints::
             min_val, max_val = log10(conrange.min), log10(conrange.max)
             rand_vals .= exp10.(rand(Uniform(min_val, max_val), length(population)))
             
-            for j in 1:length(population)
+            for j in eachindex(population)
                 population[j][i] = rand_vals[j]
             end
             i += 1
@@ -192,9 +192,11 @@ end
 Runs the genetic algorithm, returning the `GAResult` type.
 """
 function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_population(ga_problem.constraints, 10000); 
-                abstol=1e-4, reltol=1e-2, successive_f_tol = 4, iterations=5, parallelization = :thread, show_trace=true) where GP <: GAProblem
+                abstol=1e-4, reltol=1e-2, successive_f_tol = 4, iterations=5, parallelization = :thread, show_trace=true,
+                mutation_scalar = 0.5, mutation_range = fill(mutation_scalar, activelength(ga_problem.constraints)), mutation_scheme = BGA(mutation_range, 2), mutationRate = 1.0,
+                selection_method = unique_tournament_bitarray, num_tournament_groups=10, crossover = TPX, crossoverRate = 1.0,
+                n_newInds = 0.0) where GP <: GAProblem
 
-    population_size = length(population)
 
     #* Create constraints using the min and max values from constraints if they are active for optimization.
     boxconstraints = BoxConstraints([constraint.min for constraint in ga_problem.constraints if !constraint.isfixed], [constraint.max for constraint in ga_problem.constraints if !constraint.isfixed])
@@ -210,9 +212,9 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
     #* Define the range of possible values for each parameter when mutated, and the mutation scalar.
 
     #? BGA mutation scheme
-    mutation_scalar = 0.5
-    mutation_range = fill(mutation_scalar, activelength(ga_problem.constraints))
-    mutation_scheme = BGA(mutation_range, 2)
+    # mutation_scalar = 0.5
+    # mutation_range = fill(mutation_scalar, activelength(ga_problem.constraints))
+    # mutation_scheme = BGA(mutation_range, 2)
 
     #? PM mutation scheme
     # lowerbound = [constraint.min/10 for constraint in ga_problem.constraints.ranges]
@@ -221,9 +223,9 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
 
 
     #* Define the GA method.
-    mthd = GA(populationSize = population_size, selection = tournament(Int(population_size/10), select=argmax),
-                crossover = TPX, crossoverRate = 1.0, # Two-point crossover event
-                mutation  = mutation_scheme, mutationRate = 1.0)
+    mthd = GA(populationSize = length(population), selection = selection_method(cld(length(population),num_tournament_groups), select=argmax),
+                crossover = crossover, crossoverRate = crossoverRate, # Two-point crossover event
+                mutation  = mutation_scheme, mutationRate = mutationRate, ɛ = n_newInds)
 
     #* Make fitness function
     fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
