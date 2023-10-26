@@ -2,7 +2,7 @@
 """Get summed difference of the peak values from the FFT of the solution"""
 function getDif(peakvals::Vector{Float64})
     # length(peakvals) == 1 ? peakvals[1] : peakvals[1] - peakvals[end]
-    peakvals[1] - peakvals[end]
+    (peakvals[1] - peakvals[end])/length(peakvals)
 end
 
 """Get summed average standard deviation of peaks values from the FFT of the solution"""
@@ -12,7 +12,7 @@ function getSTD(fft_peakindxs::Vector{Int}, fft_arrayData; window::Int =1) #get 
     #window = max(1,cld(arrLen,window_ratio)) #* window size is 1% of array length, or 1 if array length is less than 100
     sum_std = sum(std(@view fft_arrayData[max(1, ind - window):min(arrLen, ind + window)]) for ind in fft_peakindxs) #* sum rolling window of standard deviations
 
-    # return sum_std / length(fft_peakindxs) #* divide by number of peaks to get average std
+    return sum_std / length(fft_peakindxs) #* divide by number of peaks to get average std
 end 
 
 """
@@ -109,13 +109,12 @@ Core fitness function logic that takes in the solution and time array and return
 function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {FT<:FFTW.rFFTWPlan}
 
     #* Check if the solution is steady state
-    if is_steadystate(solu, solt)
-        return [0.0, 0.0, 0.0]
-    end
+    # if is_steadystate(solu, solt)
+    #     return [0.0, 0.0, 0.0]
+    # end
 
     #* Get the indexes of the peaks in the time domain
-    indx_max, vals_max, indx_min, vals_min = findextrema(solu; height = 1e-2, distance = 5)
-    # indx_min, vals_min = findextrema(solu; height = 0.0, distance = 5, find_maxima=false)
+    indx_max, vals_max, indx_min, vals_min = findextrema(solu; min_height = 0.1)
 
     #* if there is no signal in the time domain, return 0.0s
     if length(indx_max) < 2 || length(indx_min) < 2 
@@ -127,7 +126,7 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {F
     fftData = getFrequencies!(fftData, solu) |> normalize_time_series!
 
     #* get the indexes of the peaks in the fft
-    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData; height = 1e-2, distance = 2) 
+    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData; height = 0.0, distance = 1) 
     # @info length(fft_peakindexes)
 
     #* if there is no signal in the frequency domain, return 0.0s

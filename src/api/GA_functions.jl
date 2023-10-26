@@ -194,7 +194,7 @@ Runs the genetic algorithm, returning the `GAResult` type.
 function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_population(ga_problem.constraints, 10000); 
                 abstol=1e-4, reltol=1e-2, successive_f_tol = 4, iterations=5, parallelization = :thread, show_trace=true,
                 mutation_scalar = 0.5, mutation_range = fill(mutation_scalar, activelength(ga_problem.constraints)), mutation_scheme = BGA(mutation_range, 2), mutationRate = 1.0,
-                selection_method = unique_tournament_bitarray, num_tournament_groups=10, crossover = TPX, crossoverRate = 1.0,
+                selection_method = tournament, num_tournament_groups=10, crossover = TPX, crossoverRate = 1.0,
                 n_newInds = 0.0) where GP <: GAProblem
 
 

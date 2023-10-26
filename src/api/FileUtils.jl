@@ -92,7 +92,9 @@ function make_ga_dataframe(results::GAResults, constraints::ConstraintSet)
         end
     end
     #* Calculate the relative amplitude by dividing the amp column by the initial concentration of A
-    df.relamp .= df.amp ./ df.A[1]
+    if !isempty(df.A)
+        df.relamp .= df.amp ./ df.A[1]
+    end
     return df
 end
 

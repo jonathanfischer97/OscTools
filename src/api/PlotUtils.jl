@@ -27,21 +27,26 @@ Plot the solution from a row of the DataFrame.
 
 See also [`plotfft`](@ref) for plotting the FFT of a solution.
 """
-function plotsol(sol::ODESolution; title = "")
+function plotsol(sol::ODESolution, Amem = calculate_Amem(sol); title = "")
 
         #* Sum up all A in solution 
         Asol = sol[4,:] .+ sol[13,:] .+ sol[14, :]
 
-        #* Sum up all A on membrane
-        Amem = calculate_Amem(sol)
+        #* Find peaks 
+        max_idxs, max_vals, min_idxs, min_vals = findextrema(Amem; min_height = 0.1)
         
         p = plot(sol, idxs = [1,5,2,3], title = title, xlabel = "Time (s)", ylabel = "Concentration (µM)",
-                color = [:blue :orange :purple :gold], label = ["PIP" "PIP2" "PIP5K" "Synaptojanin"], alpha = 0.5)
+                color = [:blue :orange :purple :gold], label = ["PIP" "PIP2" "PIP5K" "Synaptojanin"], alpha = 0.7, lw = 2)
 
-        plot!(p, sol.t, Asol, label="AP2 in solution", ls = :dash, alpha=1.0, color=:gray)
-        plot!(p, sol.t, Amem, label = "AP2 on membrane", ls = :dash, alpha=1.0, color=:black)
+        plot!(p, sol.t, Asol, label="AP2 in solution", ls = :dash, alpha=1.0, color=:gray, lw = 2)
+        plot!(p, sol.t, Amem, label = "AP2 on membrane", ls = :dash, alpha=1.0, color=:black, lw =2)
 
-        return p |> apply_default_settings
+        #* Plot putative peaks 
+        scatter!(p, max_idxs, max_vals, label = "", color = :red, markersize = 5)
+        scatter!(p, min_idxs, min_vals, label = "", color = :red, markersize = 5)
+
+
+        return p #|> apply_default_settings
 end
 
 
@@ -75,12 +80,8 @@ Plot the FFT of a solution from a row of the DataFrame.
 
 See also [`plotsol`](@ref) for plotting the solution.
 """
-function plotfft(sol::ODESolution)
-        #* Trim first 10% of the solution array to avoid initial spikes
-        tstart = cld(length(sol.t),10) 
-        trimsol = sol[tstart:end] 
+function plotfft(sol::ODESolution, Amem = calculate_Amem(sol))
 
-        Amem = calculate_Amem(trimsol)
         solfft = getFrequencies(Amem)
 
         #* Get the frequencies per minute for x axis
@@ -89,7 +90,7 @@ function plotfft(sol::ODESolution)
         #* Normalize the FFT to have mean 0 and amplitude 1
         normalize_time_series!(solfft)
 
-        fft_peakindexes, fft_peakvals = findextrema(solfft; height = 1e-2, distance = 2) #* get the indexes of the peaks in the fft
+        fft_peakindexes, fft_peakvals = findmaxpeaks(solfft; height = 1e-2, distance = 2) #* get the indexes of the peaks in the fft
         
         #* If there are no peaks, return a plot with no peaks
         if isempty(fft_peakindexes)
@@ -137,19 +138,19 @@ function plotboth(dfrow::DataFrameRow, prob::ODEProblem; vars::Vector{Int} = col
 end
 
 function plotboth(prob::ODEProblem; vars::Vector{Int} = collect(1:length(prob.u0)))
-        sol = solve(prob, AutoTsit5(Rodas5P()), saveat=0.1, save_idxs=vars)
+        sol = solve_odeprob(prob, vars)
 
         plotboth(sol)
 end
 
 function plotboth(sol::ODESolution)
 
-        tstart = cld(length(sol.t),10) 
-        trimsol = sol[tstart:end] 
+        # tstart = cld(length(sol.t),10) 
+        # trimsol = sol[tstart:end] 
 
-        Amem = calculate_Amem(trimsol)
+        Amem = calculate_Amem(sol)
 
-        cost, per, amp = FitnessFunction(Amem, trimsol.t)
+        cost, per, amp = FitnessFunction(Amem, sol.t)
         amp_percentage = amp/sol[4,1]
 
         solplot = plotsol(sol)
@@ -166,14 +167,14 @@ end
         plot_everything(df::DataFrame, prob::ODEProblem; jump=10, path)
 Plot the solution and FFT of every row in the DataFrame
 """
-function plot_everything(df::DataFrame, prob::ODEProblem; jump=10, path)
+function plot_everything(df::DataFrame, prob::ODEProblem; jump=10, pathdir = "testplots")
         progbar = Progress(cld(nrow(df),jump); desc = "Plotting:")
-        # plotpath = mkpath(path*"/Plots")
+        mkpath(pathdir)
         # CSV.write(path*"/Set$(setnum)-$(label).csv", df)
     
         for i in 1:jump:nrow(df)
             p = plotboth(df[i,:], prob)
-            savefig(p, path*"/plot_$(i).png")
+            savefig(p, pathdir*"/plot_$(i).png")
             next!(progbar)
         end
 end

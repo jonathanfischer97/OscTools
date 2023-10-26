@@ -61,7 +61,6 @@ end
 function Evolutionary.initial_state(method::GA, options, objfun, population::Vector{Vector{Float64}})
 
     N = length(first(population))
-    # output_array = zeros(Float64, 3, method.populationSize)
 
 
     fitvals = zeros(Float64, method.populationSize)
@@ -69,30 +68,23 @@ function Evolutionary.initial_state(method::GA, options, objfun, population::Vec
     amplitudes = similar(fitvals)
     
 
-    # @info "Initializing GA state"
-
     #* setup state values
-    n_newInds = isa(method.ɛ, Int) ? method.ɛ : round(Int, method.ɛ * method.populationSize)
-    @info "n_newInds: $(n_newInds)"
+    n_newInds = isa(method.ɛ, Int) ? method.ɛ : round(Int, method.ɛ * method.populationSize) #determine number of individuals to newly generate each generation
 
     #* Evaluate population fitness, period and amplitude
     Evolutionary.value!(objfun, fitvals, periods, amplitudes, population)
-    # Evolutionary.value!(objfun, output_array, population)
 
 
     maxfit, fitidx = findmax(fitvals)
-    # maxfit, fitidx = findmax(output_array[1,:])
 
     #* setup initial state
     return CustomGAState(N, n_newInds, maxfit, copy(population[fitidx]), fitvals, periods, amplitudes)
-    # return CustomGAState(N, eliteSize, maxfit, copy(population[fitidx]), output_array)
 end
 
 function Evolutionary.evaluate!(objfun, population::Vector{Vector{Float64}}, fitvals, periods, amplitudes)
 
     #* calculate fitness of the population
     Evolutionary.value!(objfun, fitvals, periods, amplitudes, population)
-    # Evolutionary.value!(objfun, output_array, population)
 
     #* apply penalty to fitness
     # Evolutionary.penalty!(fitvals, constraints, population)
@@ -103,15 +95,14 @@ function Evolutionary.update_state!(objfun, constraints, state::CustomGAState, p
     populationSize = method.populationSize
     rng = options.rng
     # offspring = similar(parents)
-    offspring = copy(parents)
+    offspring = copy(parents) #copy so that array is fully initialized
 
+    offspringSize = populationSize - state.n_newInds #! recombination and mutation will only be performed on the offspring of the selected, new indidivudals will be generated randomly anyways
 
     #* select offspring
-    selected = method.selection(state.fitvals, state.n_newInds, rng=rng)
+    selected = method.selection(state.fitvals, offspringSize, rng=rng)
 
     #* perform mating
-    offspringSize = populationSize - state.n_newInds #! recombination and mutation will only be performed on the offspring of the selected, new indidivudals will be generated randomly anyways
-    @info "offspringSize: $(offspringSize)"
     Evolutionary.recombine!(offspring, parents, selected, method, rng=rng)
 
     #* perform mutation
@@ -125,8 +116,7 @@ function Evolutionary.update_state!(objfun, constraints, state::CustomGAState, p
     #* calculate fitness, period, and amplitude of the population
     Evolutionary.evaluate!(objfun, offspring, state.fitvals, state.periods, state.amplitudes)
 
-    @info length(filter(x-> x > 0.0, state.fitvals))
-    @info maximum(state.fitvals)
+    @info "Number of fit NEW offspring: $(count(fit -> fit > 0.0, state.fitvals[offspringSize+1:end]))"
 
 
     #* select the best individual

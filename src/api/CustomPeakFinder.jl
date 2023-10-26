@@ -42,228 +42,243 @@ function findmaxpeaks(x;
     extrema_indices, extrema_heights
 end
 
-"""
-    findextrema(x::Vector{T}; height::Union{Nothing,<:Real,NTuple{2,<:Real}}=nothing, distance::Union{Nothing,Int}=nothing)
+# """
+#     findextrema(x::Vector{T}; height::Union{Nothing,<:Real,NTuple{2,<:Real}}=nothing, distance::Union{Nothing,Int}=nothing)
 
-Finds the maxima and minima values of a vector, along with their indices. The height and distance filters can be applied to the maxima and minima.
-"""
-function findextrema(x::Vector{T};
-                     height::Union{Nothing,<:Real,NTuple{2,<:Real}}=nothing,
-                     distance::Union{Nothing,Int}=nothing) where {T<:Real}
-    maxima_indices = Vector{Int}(undef, 0)
-    minima_indices = Vector{Int}(undef, 0)
-    i = 2
-    imax = length(x)
-
-    while i < imax
-        iahead = i + 1
-        while (iahead < imax) && (x[iahead] == x[i])
-            iahead += 1
-        end
-
-        # Check for maxima
-        if x[i-1] < x[i] && x[iahead] < x[i]
-            push!(maxima_indices, (i + iahead - 1) ÷ 2)
-        end
-
-        # Check for minima
-        if x[i-1] > x[i] && x[iahead] > x[i]
-            push!(minima_indices, (i + iahead - 1) ÷ 2)
-        end
-
-        i = iahead
-    end
-
-    # Apply height and distance filters to both maxima and minima
-    filter_extrema!(x, maxima_indices, height, distance)
-    filter_extrema!(x, minima_indices, height, distance)
-
-    maxima_heights = x[maxima_indices]
-    minima_heights = x[minima_indices]
-
-    return maxima_indices, maxima_heights, minima_indices, minima_heights
-end
-
-
-function filter_extrema!(x::Vector{T}, extrema::Vector{Int}, height, distance) where {T<:Real}
-    # Filter by height
-    if !isnothing(height)
-        hmin, hmax = height isa Number ? (height, nothing) : height
-        keepheight = (hmin === nothing || x[extrema] .>= hmin) .& (hmax === nothing || x[extrema] .<= hmax)
-        extrema = extrema[keepheight]
-    end
-
-    # Filter by distance
-    if !isnothing(distance)
-        priority = x[extrema]  # Priority based on height
-        keep = selectbypeakdistance(extrema, priority, distance)
-        extrema = extrema[keep]
-    end
-end
-
-
-
-function selectbypeakdistance(pkindices, priority, distance)
-    npkindices = length(pkindices)
-    keep = trues(npkindices)
-
-    prioritytoposition = sortperm(priority, rev=true)
-    for i ∈ npkindices:-1:1
-        j = prioritytoposition[i]
-        iszero(keep[j]) && continue
-
-        k = j-1
-        while (1 <= k) && ((pkindices[j]-pkindices[k]) < distance)
-            keep[k] = false
-            k -= 1
-        end
-
-        k = j+1
-        while (k <= npkindices) && ((pkindices[k]-pkindices[j]) < distance)
-            keep[k] = false
-            k += 1
-        end
-    end
-    keep
-end
-
-# function findextrema(x::AbstractVector{T}; 
-#                     height::Union{Nothing,<:Real,NTuple{2,<:Real}}=nothing,
-#                     distance::Union{Nothing,Int}=nothing) where {T<:Real}
-#     midpts = Vector{Int}(undef, 0)
+# Finds the maxima and minima values of a vector, along with their indices. The height and distance filters can be applied to the maxima and minima.
+# """
+# function findextrema(x::Vector{T};
+#                      height::Union{Nothing,<:Real,NTuple{2,<:Real}}=nothing,
+#                      distance::Union{Nothing,Int}=nothing) where {T<:Real}
+#     maxima_indices = Vector{Int}(undef, 0)
+#     minima_indices = Vector{Int}(undef, 0)
 #     i = 2
 #     imax = length(x)
 
 #     while i < imax
-#         if x[i-1] < x[i]
-#             iahead = i + 1
-#             while (iahead < imax) && (x[iahead] == x[i])
-#                 iahead += 1
-#             end
-#             if x[iahead] < x[i]
-#                 push!(midpts, (i + iahead - 1) ÷ 2)
-#                 i = iahead
-#             end
+#         iahead = i + 1
+#         while (iahead < imax) && (x[iahead] == x[i])
+#             iahead += 1
 #         end
-#         i += 1
-#     end 
 
-#     #* Filter by height if needed
+#         # Check for maxima
+#         if x[i-1] < x[i] && x[iahead] < x[i]
+#             push!(maxima_indices, (i + iahead - 1) ÷ 2)
+#         end
+
+#         # Check for minima
+#         if x[i-1] > x[i] && x[iahead] > x[i]
+#             push!(minima_indices, (i + iahead - 1) ÷ 2)
+#         end
+
+#         i = iahead
+#     end
+
+#     # Apply height and distance filters to both maxima and minima
+#     filter_extrema!(x, maxima_indices, height, distance)
+#     filter_extrema!(x, minima_indices, height, distance)
+
+#     maxima_heights = x[maxima_indices]
+#     minima_heights = x[minima_indices]
+
+#     return maxima_indices, maxima_heights, minima_indices, minima_heights
+# end
+
+
+# function filter_extrema!(x::Vector{T}, extrema::Vector{Int}, height, distance) where {T<:Real}
+#     # Filter by height
 #     if !isnothing(height)
 #         hmin, hmax = height isa Number ? (height, nothing) : height
-#         keepheight = (hmin === nothing || x[midpts] .>= hmin) .& (hmax === nothing || x[midpts] .<= hmax)
-#         midpts = midpts[keepheight]
+#         keepheight = (hmin === nothing || x[extrema] .>= hmin) .& (hmax === nothing || x[extrema] .<= hmax)
+#         extrema = extrema[keepheight]
 #     end
 
-#     #* Filter by distance if needed
+#     # Filter by distance
 #     if !isnothing(distance)
-#         priority = x[midpts]
-#         keep = selectbypeakdistance(midpts, priority, distance)
-#         midpts = midpts[keep]
+#         priority = x[extrema]  # Priority based on height
+#         keep = selectbypeakdistance(extrema, priority, distance)
+#         extrema = extrema[keep]
 #     end
-
-#     extrema_indices = midpts
-#     extrema_heights = x[extrema_indices]
-
-#     extrema_indices, extrema_heights
-# end
-
-# function find_minima_between_maxima(x::AbstractVector{T}, maxima_indices::Vector{Int}) where {T<:Real}
-#     minima_indices = Vector{Int}(undef, length(maxima_indices) - 1)
-#     minima_values = Vector{T}(undef, length(maxima_indices) - 1)
-
-#     for i in 1:(length(maxima_indices) - 1)
-#         range = maxima_indices[i]:maxima_indices[i+1]
-#         minima_indices[i] = argmin(x[range]) + range.start - 1
-#         minima_values[i] = x[minima_indices[i]]
-#     end
-
-#     return minima_indices, minima_values
 # end
 
 
+# function select_bypeakdistance(pkindices, priority, distance)
+#     npkindices = length(pkindices)
+#     keep = trues(npkindices)
 
-# """
-# Struct to hold the properties of the peaks found by the peak finder
-# """
-# struct PeakProperties
-#     peak_heights::Union{Nothing, Vector{Float64}}
-#     prominences::Union{Nothing, Vector{Float64}}
-#     leftbases::Union{Nothing, Vector{Int}}
-#     rightbases::Union{Nothing, Vector{Int}}
-#     widths::Union{Nothing, Vector{Float64}}
-#     widthheights::Union{Nothing, Vector{Float64}}
-#     leftips::Union{Nothing, Vector{Float64}}
-#     rightips::Union{Nothing, Vector{Float64}}
+#     prioritytoposition = sortperm(priority, rev=true)
+#     for i ∈ npkindices:-1:1
+#         j = prioritytoposition[i]
+#         iszero(keep[j]) && continue
+
+#         k = j-1
+#         while (1 <= k) && ((pkindices[j]-pkindices[k]) < distance)
+#             keep[k] = false
+#             k -= 1
+#         end
+
+#         k = j+1
+#         while (k <= npkindices) && ((pkindices[k]-pkindices[j]) < distance)
+#             keep[k] = false
+#             k += 1
+#         end
+#     end
+#     keep
 # end
 
 
-# function filterproperties!(properties::PeakProperties, keep::BitVector)
-#     properties.peak_heights = properties.peak_heights[keep]
-#     properties.prominences = properties.prominences[keep]
-#     properties.leftbases = properties.leftbases[keep]
-#     properties.rightbases = properties.rightbases[keep]
-#     properties.widths = properties.widths[keep]
-#     properties.widthheights = properties.widthheights[keep]
-#     properties.leftips = properties.leftips[keep]
-#     properties.rightips = properties.rightips[keep]
-# end
+"""
+    findextrema(x::Vector{Float64}; min_height::Float64=0.0)
 
-# function findpeaks1d(x::AbstractVector{T};
-#                     height::Union{Nothing,<:Real,NTuple{2,<:Real}}=nothing,
-#                     distance::Union{Nothing,I}=nothing,
-#                     prominence::Union{Nothing,Real,NTuple{2,Real}}=nothing,
-#                     width::Union{Nothing,Real,NTuple{2,Real}}=nothing,
-#                     wlen::Union{Nothing,I}=nothing,
-#                     relheight::Real=0.5,
-#                     calc_peak_heights::Bool=false,
-#                     calc_prominences::Bool=false,
-#                     calc_widths::Bool=false) where {T<:Real,I<:Integer}
+Find and filter the maxima and minima of a data vector based on height prominence.
 
-#     pkindices, leftedges, rightedges = localmaxima1d(x)
+# Arguments
+- `x::Vector{Float64}`: The data vector
+- `min_height::Float64`: Minimum height prominence for maxima and corresponding minima
 
-#     # Initialize variables for optional calculations
-#     peak_heights = nothing
-#     prominences = nothing
-#     leftbases = nothing
-#     rightbases = nothing
-#     widths = nothing
-#     widthheights = nothing
-#     leftips = nothing
-#     rightips = nothing
+# Returns
+- `maxima_indices::Vector{Int}`: Indices of the filtered maxima
+- `maxima_values::Vector{Float64}`: Values of the filtered maxima
+- `minima_indices::Vector{Int}`: Indices of the filtered minima
+- `minima_values::Vector{Float64}`: Values of the filtered minima
 
-#     if calc_peak_heights && !isnothing(height)
-#         pkheights = x[pkindices]
-#         hmin, hmax = height isa Number ? (height, nothing) : height
-#         keepheight = selectbyproperty(pkheights, hmin, hmax)
-#         pkindices = pkindices[keepheight]
-#         peak_heights = pkheights[keepheight]
-#     end
+"""
+function findextrema(x::Vector{Float64}; min_height::Float64=0.0)
+    maxima_indices = Vector{Int}(undef, 0)
+    minima_indices = Vector{Int}(undef, 0)
+    
+    # Initial loop to identify potential maxima and minima
+    for i in 2:(length(x) - 1)
+        if x[i] > x[i-1] && x[i] > x[i+1]
+            push!(maxima_indices, i)
+        elseif x[i] < x[i-1] && x[i] < x[i+1]
+            push!(minima_indices, i)
+        end
+    end
+    
+    if isempty(maxima_indices) || isempty(minima_indices)
+        return maxima_indices, Vector{Float64}(undef, 0), minima_indices, Vector{Float64}(undef, 0)
+    end
 
-#     if !isnothing(distance)
-#         keepdist = selectbypeakdistance(pkindices, x[pkindices], distance)
-#         pkindices = pkindices[keepdist]
-#     end
+    # Filter maxima and corresponding minima based on height prominence
+    filter_extrema!(x, maxima_indices, minima_indices, min_height)
+    
+    # Get values of the filtered maxima and minima
+    maxima_values = x[maxima_indices]
+    minima_values = x[minima_indices]
+    
+    return maxima_indices, maxima_values, minima_indices, minima_values
+end
 
-#     if calc_prominences && (!isnothing(prominence) || !isnothing(width))
-#         prominences, leftbases, rightbases = peakprominences1d(x, pkindices, wlen)
-#     end
 
-#     if !isnothing(prominence)
-#         pmin, pmax = prominence isa Number ? (prominence, nothing) : prominence
-#         keepprom = selectbyproperty(prominences, pmin, pmax)
-#         pkindices = pkindices[keepprom]
-#     end
+"""
+    filter_extrema!(x::Vector{Float64}, maxima_indices::Vector{Int}, minima_indices::Vector{Int}, min_height::Float64)
 
-#     if calc_widths && !isnothing(width)
-#         widths, widthheights, leftips, rightips = peakwidths1d(x, pkindices, relheight, prominences, leftbases, rightbases)
-#         wmin, wmax = width isa Number ? (width, nothing) : width
-#         keepwidth = selectbyproperty(widths, wmin, wmax)
-#         pkindices = pkindices[keepwidth]
-#     end
+Filter out extrema based on prominence.
 
-#     # Construct the properties struct with the calculated values
-#     properties = PeakProperties(peak_heights, prominences, leftbases, rightbases, widths, widthheights, leftips, rightips)
+# Arguments
+- `x::Vector{Float64}`: The original data vector
+- `maxima_indices::Vector{Int}`: Indices of maxima
+- `minima_indices::Vector{Int}`: Indices of minima
+- `min_height::Float64`: Minimum prominence for an extremum to be considered
+"""
+function filter_extrema!(x::Vector{Float64}, maxima_indices::Vector{Int}, minima_indices::Vector{Int}, min_height::Float64)
+    # Calculate the prominence for each extremum
+    max_prominences, min_prominences = calculate_prominence(x, maxima_indices, minima_indices)
 
-#     pkindices, properties
-# end
+    # Filter maxima by prominence
+    keep_max_by_prominence = max_prominences .>= min_height
+    deleteat!(maxima_indices, .!keep_max_by_prominence)
+
+    # Filter minima by prominence
+    keep_min_by_prominence = min_prominences .>= min_height
+    deleteat!(minima_indices, .!keep_min_by_prominence)
+end
+
+
+
+"""
+    calculate_prominence(x::Vector{Float64}, maxima_indices::Vector{Int}, minima_indices::Vector{Int})
+
+Calculate the prominence of each maxima relative to its preceding minima, and vice versa.
+
+# Arguments
+- `x::Vector{Float64}`: The original data vector
+- `maxima_indices::Vector{Int}`: Indices of maxima
+- `minima_indices::Vector{Int}`: Indices of minima
+
+# Returns
+- `max_prominences::Vector{Float64}`: Prominence of each maxima
+- `min_prominences::Vector{Float64}`: Prominence of each minima
+"""
+function calculate_prominence(x::Vector{Float64}, maxima_indices::Vector{Int}, minima_indices::Vector{Int})
+    n_max = length(maxima_indices)
+    n_min = length(minima_indices)
+    max_prominences = Vector{Float64}(undef, n_max)
+    min_prominences = Vector{Float64}(undef, n_min)
+
+    # Initialize the first preceding minima or maxima
+    prev_min_idx = first(maxima_indices) < first(minima_indices) ? 1 : first(minima_indices)
+    prev_max_idx = first(minima_indices) < first(maxima_indices) ? 1 : first(maxima_indices)
+    
+    # Calculate the prominence of each maxima
+    for (i, max_idx) in enumerate(maxima_indices)
+        found_idx = findlast(min_idx -> min_idx < max_idx, minima_indices)
+        prev_min_idx = isnothing(found_idx) ? i : minima_indices[found_idx]
+        max_prominences[i] = x[max_idx] - x[prev_min_idx]
+    end
+    
+    # Calculate the prominence of each minima
+    for (i, min_idx) in enumerate(minima_indices)
+        found_idx = findlast(max_idx -> max_idx < min_idx, maxima_indices)
+        prev_max_idx = isnothing(found_idx) ? i : maxima_indices[found_idx]
+        min_prominences[i] = x[prev_max_idx] - x[min_idx]
+    end
+    
+    return max_prominences, min_prominences
+end
+
+
+"""
+    selectbypeakdistance(peak_indices, priority, min_distance)
+
+Filters out peaks that are too close to higher-priority peaks.
+
+# Arguments
+- `peak_indices::Vector{Int}`: Indices of the peaks
+- `priority::Vector`: Priority levels for each peak, usually based on height
+- `min_distance::Int`: The minimum distance required between peaks
+
+# Returns
+- `keep::BitVector`: A boolean vector indicating which peaks to keep
+"""
+function selectbypeakdistance(peak_indices::Vector{Int}, priority::Vector, min_distance::Int)
+    num_peaks = length(peak_indices)
+    keep = trues(num_peaks)  # Initialize with all true
+
+    # Sort peaks by priority (usually height), in descending order
+    sorted_by_priority = sortperm(priority, rev=true)
+
+    # Loop through each peak, starting with the highest priority
+    for i in num_peaks:-1:1
+        current_peak_pos = sorted_by_priority[i]
+
+        # Skip if this peak is already marked for removal
+        iszero(keep[current_peak_pos]) && continue
+
+        # Check lower-indexed peaks
+        lower_idx = current_peak_pos - 1
+        while (lower_idx >= 1) && (abs(peak_indices[current_peak_pos] - peak_indices[lower_idx]) < min_distance)
+            keep[lower_idx] = false
+            lower_idx -= 1
+        end
+
+        # Check higher-indexed peaks
+        higher_idx = current_peak_pos + 1
+        while (higher_idx <= num_peaks) && (abs(peak_indices[higher_idx] - peak_indices[current_peak_pos]) < min_distance)
+            keep[higher_idx] = false
+            higher_idx += 1
+        end
+    end
+    return keep
+end
