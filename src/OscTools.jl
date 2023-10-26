@@ -32,7 +32,7 @@ module OscTools
     # import the constraint types and tools
     include("api/ConstraintSetTools.jl")
     export ConstraintSet, ConstraintRange, ParameterConstraints, InitialConditionConstraints, AllConstraints, 
-            activelength, set_fixed_constraints!, set_fixed_values!, unset_fixed_constraints!, get_fixed_constraintranges
+            activelength, set_fixed_constraints!, set_fixed_values!, unset_fixed_constraints!, get_fixed_constraintranges, minima, maxima
 
     # import the genetic algorithm and associated functions
     include("api/GA_functions.jl")
@@ -50,7 +50,11 @@ module OscTools
 
     #include clustering utilities
     include("api/ClusteringTools.jl")
-    export population_to_matrix, get_kmeans, df_to_matrix, identify_fixed_columns, get_optimal_clusters
+    export population_to_matrix, get_kmeans, df_to_matrix, identify_fixed_columns, get_optimal_clusters, get_cluster_distances
+
+    #include diversity metrics
+    include("api/DiversityMetrics.jl")
+    export get_pairwise_diversity
 
     #include testing functions
     include("api/TestingFunctions.jl")

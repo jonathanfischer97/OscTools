@@ -18,6 +18,12 @@ Base.iterate(constraint::ConstraintSet, state=1) = state > length(constraint) ? 
 # Required for the `in` keyword
 Base.eltype(::Type{ConstraintSet}) = ConstraintRange
 
+"""Returns the minima of all non-fixed elements in a ConstraintSet"""
+minima(constraints::CT) where CT <: ConstraintSet = [constraint.min for constraint in constraints if !constraint.isfixed]
+
+"""Returns the maxima of all non-fixed elements in a ConstraintSet"""
+maxima(constraints::CT) where CT <: ConstraintSet = [constraint.max for constraint in constraints if !constraint.isfixed]
+
 #> END ##
 
 
