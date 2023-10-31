@@ -132,7 +132,7 @@ end
 #> END OF CUSTOM GA STATE CONSTRUCTOR AND UPDATE STATE FUNCTION ##
 
 """
-    generate_new_individuals!(offspring::Vector{Vector{Float64}}, constraints::CT) where CT <: BoxConstraints
+    generate_new_individuals!(new_inds, constraints::CT) where CT <: BoxConstraints
 
 Generates `n_newInds` individuals to fill out the `offspring` array through log-uniform sampling.
 """

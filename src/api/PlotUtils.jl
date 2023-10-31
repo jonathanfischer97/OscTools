@@ -124,15 +124,26 @@ end
 
 
 """
+        get_row_prob(dfrow::DataFrameRow, prob::ODEProblem)
+Return remade problem from DataFrame row
+"""
+function get_row_prob(dfrow::DataFrameRow, prob::ODEProblem)
+        newp = [param for param in dfrow[Between(:ka1, :DF)]]
+        newu0 = [ic for ic in dfrow[Between(:L, :A)]]
+
+        reprob = remake(prob, p = newp, u0 = [newu0; zeros(length(prob.u0) - length(newu0))])
+        return reprob
+end
+
+
+"""
         plotboth(dfrow::DataFrameRow, prob::ODEProblem; vars::Vector{Int} = collect(eachindex(prob.u0)))
 
 Plot both the solution and the FFT of a solution from a row of the DataFrame
 """
 function plotboth(dfrow::DataFrameRow, prob::ODEProblem; vars::Vector{Int} = collect(eachindex(prob.u0)))
-        newp = [param for param in dfrow[Between(:ka1, :DF)]]
-        newu0 = [ic for ic in dfrow[Between(:L, :A)]]
 
-        reprob = remake(prob, p = newp, u0 = [newu0; zeros(length(prob.u0) - length(newu0))])
+        reprob = get_row_prob(dfrow, prob)
 
         plotboth(reprob; vars = vars)
 end

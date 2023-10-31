@@ -5,7 +5,7 @@ Computes the maximum pairwise distance as a diversity metric for a population of
 """
 function getmax_pairwise_diversity(population::AbstractMatrix{Float64})
     # Step 1: Log Transformation 
-    log_population = log.(population)
+    # log_population = log.(population)
     
     # Step 2: Normalization
     # min_vals = minimum(log_population, dims=2)
@@ -14,7 +14,7 @@ function getmax_pairwise_diversity(population::AbstractMatrix{Float64})
     
     # Step 3 & 4: Compute Average Pairwise Distances
     # distances = [norm(normalized_population[:, i] - normalized_population[:, j]) for i in 1:n for j in (i+1):n]
-    distances = pairwise(Euclidean(), log_population, dims=2)
+    distances = pairwise(Euclidean(), population, dims=2)
     
     return maximum(distances)
 end
