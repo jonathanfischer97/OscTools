@@ -1,9 +1,9 @@
-"""Returns RFFT plan for the given ODEProblem, using the default problem solution"""
-function make_rfft_plan(ode_problem::OP) where OP <: ODEProblem
-    sol = solve_odeprob(ode_problem, [6, 9, 10, 11, 12, 15, 16])
-    Amem_sol = map(sum, sol.u)
-    return plan_rfft(Amem_sol)
-end
+# """Returns RFFT plan for the given ODEProblem, using the default problem solution"""
+# function make_rfft_plan(ode_problem::OP) where OP <: ODEProblem
+#     sol = solve_odeprob(ode_problem, [6, 9, 10, 11, 12, 15, 16])
+#     Amem_sol = map(sum, sol.u)
+#     return plan_rfft(Amem_sol)
+# end
 
 #< FITNESS FUNCTION CONSTRUCTOR ##
 """

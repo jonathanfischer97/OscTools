@@ -51,7 +51,7 @@ function getPerAmp(sol::OS) where OS <: ODESolution
 
     Amem_sol = @views sol[6,:] + sol[9,:] + sol[10,:]+ sol[11,:] + sol[12,:]+ sol[15,:] + sol[16,:]
 
-    indx_max, vals_max, indx_min, vals_min = findextrema(Amem_sol; height = 1e-2, distance = 5)
+    indx_max, vals_max, indx_min, vals_min = findextrema(Amem_sol; min_height=0.1)
     # indx_min, vals_min = findextrema(Amem_sol; height = 0.0, distance = 5, find_maxima=false)
     return getPerAmp(sol.t, indx_max, vals_max, indx_min, vals_min)
 end
@@ -127,7 +127,6 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {F
 
     #* get the indexes of the peaks in the fft
     fft_peakindexes, fft_peakvals = findmaxpeaks(fftData; height = 0.0, distance = 1) 
-    # @info length(fft_peakindexes)
 
     #* if there is no signal in the frequency domain, return 0.0s
     if length(fft_peakindexes) < 2 
@@ -146,6 +145,44 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {F
         return [standard_deviation + sum_diff + log(10,period), period, amplitude]
     end
 end
+
+
+function FitnessFunction(solu, period)
+    #* Get the rfft of the solution and normalize it
+    fftData = @view solu[1:cld(length(solu),4)] 
+    fftData = getFrequencies!(fftData, solu) |> normalize_time_series!
+
+    #* get the indexes of the peaks in the fft
+    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData; height = 0.0, distance = 1) 
+
+    #* get the summed standard deviation of the peaks in frequency domain
+    standard_deviation = getSTD(fft_peakindexes, fftData) 
+
+    #* get the summed difference between the first and last peaks in frequency domain
+    sum_diff = getDif(fft_peakvals) 
+
+    #* add the log of the period to the standard deviation and summed difference to calculate fitness and privelage longer periods
+    return standard_deviation + sum_diff + log10(period)
+end
+
+function get_std_last10th(solu, solt)
+    tstart = cld(length(solt),10) 
+
+    #* Test window of last 10% of solution
+    testwindow = solu[end-tstart:end]
+    
+    return std(testwindow; mean=mean(testwindow))
+end
+
+
+function FitnessPenalty(solu, solt)
+    last10th_std = get_std_last10th(solu, solt)
+
+    
+end
+
+
+
 
 
 #< FITNESS FUNCTION CALLERS AND WRAPPERS ## 
