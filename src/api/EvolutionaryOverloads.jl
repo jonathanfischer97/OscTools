@@ -21,7 +21,8 @@ Evolutionary.minimizer(s::CustomGAState) = s.fittestInd #return the fittest indi
 
 """Trace override function"""
 function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::GA, options) 
-    oscillatory_population_idxs = findall(fit -> fit > 0.0, state.fitvals) #find the indices of the oscillatory individuals
+    # oscillatory_population_idxs = findall(fit -> fit > 0.0, state.fitvals) #find the indices of the oscillatory individuals
+    oscillatory_population_idxs = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
 
     record["population"] = deepcopy(population[oscillatory_population_idxs])
     # valarray = copy(view(state.valarray,:,oscillatory_population_idxs))
@@ -238,10 +239,7 @@ Evolutionary.ismultiobjective(obj::EvolutionaryObjective{Function, AbstractArray
 function Evolutionary.value!(obj::EvolutionaryObjective{TC, Vector{Float64}, Vector{Float64},Val{:thread}},
                                 F::Vector{Float64}, P::Vector{Float64}, A::Vector{Float64}, xs::Vector{Vector{Float64}}) where {TC}
     n = length(xs)
-    # @info "Evaluating F, P, A separately"
-    # @info "F type: $(typeof(F))"
     Threads.@threads for i in 1:n
-        # @info length(xs[i])
         F[i], P[i], A[i] = Evolutionary.value(obj, xs[i])  #* evaluate the fitness, period, and amplitude for each individual
     end
 end

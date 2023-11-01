@@ -2,7 +2,7 @@
 """Get summed difference of the peak values from the FFT of the solution"""
 function getDif(peakvals::Vector{Float64})
     # length(peakvals) == 1 ? peakvals[1] : peakvals[1] - peakvals[end]
-    (peakvals[1] - peakvals[end])/length(peakvals)
+    (peakvals[begin] - peakvals[end])/length(peakvals)
 end
 
 """Get summed average standard deviation of peaks values from the FFT of the solution"""
@@ -10,7 +10,7 @@ function getSTD(fft_peakindxs::Vector{Int}, fft_arrayData; window::Int =1) #get 
     arrLen = length(fft_arrayData)
 
     #window = max(1,cld(arrLen,window_ratio)) #* window size is 1% of array length, or 1 if array length is less than 100
-    sum_std = sum(std(@view fft_arrayData[max(1, ind - window):min(arrLen, ind + window)]) for ind in fft_peakindxs) #* sum rolling window of standard deviations
+    sum_std = sum(std(@view fft_arrayData[max(1, ind - window):min(arrLen, ind + window)]) for ind in fft_peakindxs; init=0.0) #* sum rolling window of standard deviations
 
     return sum_std / length(fft_peakindxs) #* divide by number of peaks to get average std
 end 
@@ -19,8 +19,9 @@ end
     getFrequencies(timeseries)
 Return the real-valued FFT of a timeseries, will be half the length of the timeseries
 """
-function getFrequencies(timeseries::Vector{Float64}) 
+function getFrequencies(timeseries::Vector{Float64}; jump::Int = 2) 
     # rfft_result = rfft(@view timeseries[1:2:end])
+    # sampled_timeseries = @view timeseries[1:jump:end]
     rfft_result = rfft(timeseries)
     norm_val = cld(length(timeseries), 2) #* normalize by length of timeseries
     abs.(rfft_result) ./ norm_val
@@ -30,8 +31,8 @@ end
     getFrequencies!(fft_array, timeseries)
 Computes the real-valued FFT and returns it in-place to the preallocated fft_array, which is half the length of `timeseries`.
 """
-function getFrequencies!(fft_array, timeseries::Vector{Float64}) 
-    rfft_result = rfft(timeseries[1:2:end])
+function getFrequencies!(fft_array, timeseries::Vector{Float64}; jump::Int = 2) 
+    rfft_result = rfft(@view timeseries[1:jump:end])
     norm_val = cld(length(timeseries), 2) #* normalize by length of timeseries
     fft_array .= abs.(rfft_result) ./ norm_val
 end
@@ -147,7 +148,7 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {F
 end
 
 
-function FitnessFunction(solu, period)
+function get_fitness!(solu::Vector{Float64})
     #* Get the rfft of the solution and normalize it
     fftData = @view solu[1:cld(length(solu),4)] 
     fftData = getFrequencies!(fftData, solu) |> normalize_time_series!
@@ -162,10 +163,10 @@ function FitnessFunction(solu, period)
     sum_diff = getDif(fft_peakvals) 
 
     #* add the log of the period to the standard deviation and summed difference to calculate fitness and privelage longer periods
-    return standard_deviation + sum_diff + log10(period)
+    return standard_deviation + sum_diff #+ log10(period)
 end
 
-function get_std_last10th(solu, solt)
+function get_std_last10th(solu::Vector{Float64}, solt::Vector{Float64})
     tstart = cld(length(solt),10) 
 
     #* Test window of last 10% of solution
@@ -175,10 +176,12 @@ function get_std_last10th(solu, solt)
 end
 
 
-function FitnessPenalty(solu, solt)
-    last10th_std = get_std_last10th(solu, solt)
-
-    
+function is_oscillatory(solu::Vector{Float64}, solt::Vector{Float64}, max_idxs::Vector{Int}, min_idxs::Vector{Int})
+    if !is_steadystate(solu, solt) && length(max_idxs) > 2 && length(min_idxs) > 2
+        return true
+    else
+        return false
+    end
 end
 
 
@@ -186,19 +189,19 @@ end
 
 
 #< FITNESS FUNCTION CALLERS AND WRAPPERS ## 
-"""Evaluate the fitness of an individual with new parameters"""
-function eval_param_fitness(params::Vector{Float64},  prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
-    #* remake with new parameters
-    new_prob = remake(prob, p=params)
-    return solve_for_fitness_peramp(new_prob, idx)
-end
+# """Evaluate the fitness of an individual with new parameters"""
+# function eval_param_fitness(params::Vector{Float64},  prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
+#     #* remake with new parameters
+#     new_prob = remake(prob, p=params)
+#     return solve_for_fitness_peramp(new_prob, idx)
+# end
 
-"""Evaluate the fitness of an individual with new initial conditions"""
-function eval_ic_fitness(initial_conditions::Vector{Float64}, prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
-    #* remake with new initial conditions
-    new_prob = remake(prob, u0=initial_conditions)
-    return solve_for_fitness_peramp(new_prob, idx)
-end
+# """Evaluate the fitness of an individual with new initial conditions"""
+# function eval_ic_fitness(initial_conditions::Vector{Float64}, prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
+#     #* remake with new initial conditions
+#     new_prob = remake(prob, u0=initial_conditions)
+#     return solve_for_fitness_peramp(new_prob, idx)
+# end
 
 """Evaluate the fitness of an individual with new initial conditions and new parameters"""
 function eval_all_fitness(inputs::Vector{Float64}, prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
@@ -216,8 +219,16 @@ function eval_all_fitness(inputs::Vector{Float64}, prob::OP; idx::Vector{Int} = 
     return solve_for_fitness_peramp(new_prob, idx)
 end
 
+function remake_prob(inputs::Vector{Float64}, prob::OP) where {OP <: ODEProblem}
+    newp = @view inputs[1:13]
+    newu = @view inputs[14:end]
+
+    #* remake with new initial conditions and new parameters
+    return remake(prob; p = newp, u0= newu)
+end
+
 """Takes in an ODEProblem and returns solution"""
-function solve_odeprob(prob::OP, idx) where OP <: ODEProblem
+function solve_odeprob(prob::OP, idx=[6, 9, 10, 11, 12, 15, 16]) where OP <: ODEProblem
     #* calculate first 10% of the tspan
     tstart = prob.tspan[2] / 10
 

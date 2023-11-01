@@ -50,6 +50,56 @@ make_fitness_function_threaded(constraints::AllConstraints, ode_problem::ODEProb
 #> END
 
 
+
+"""
+    make_fitness_function(constraints::ConstraintSet, ode_problem::OP)
+
+Constructs fitness function.
+    """
+function make_fitness_function(constraints::CT, ode_problem::OP) where {CT<:ConstraintSet, OP<:ODEProblem}
+    fixed_idxs = get_fixed_indices(constraints)
+    fixed_values = [constraints[i].fixed_value for i in fixed_idxs]
+    n_fixed = length(fixed_idxs)
+    n_total = n_fixed + activelength(constraints) 
+
+    non_fixed_indices = setdiff(1:n_total, fixed_idxs)
+
+    merged_input = zeros(Float64, n_total+12)
+
+    merged_input[fixed_idxs] .= fixed_values  # Fill in fixed values
+
+    function fitness_function(input::Vector{Float64})
+        local_merged_input = copy(merged_input) 
+        local_merged_input[non_fixed_indices] .= input  # Fill in variable values
+
+        newprob = remake_prob(local_merged_input, ode_problem)
+        sol = solve_odeprob(newprob)
+
+        if sol.retcode != ReturnCode.Success
+            return [0.0, 0.0, 0.0]
+        end
+
+        Amem_sol = map(sum, sol.u)
+
+        max_idxs, max_vals, min_idxs, min_vals = findextrema(Amem_sol, min_height=0.1)
+
+        period = 0.0
+        amplitude = 0.0
+        fitness = 0.0
+
+        if is_oscillatory(Amem_sol, sol.t, max_idxs, min_idxs)
+            period, amplitude = getPerAmp(sol.t, max_idxs, max_vals, min_idxs, min_vals)
+            fitness += log10(period)
+        end
+
+        fitness += get_fitness!(Amem_sol)
+
+        return [fitness, period, amplitude]
+    end
+
+    return fitness_function
+end
+
 #< GA PROBLEM TYPE ##
 """
     GAProblem{T <: ConstraintSet}
@@ -228,7 +278,8 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
                 mutation  = mutation_scheme, mutationRate = mutationRate, ɛ = n_newInds)
 
     #* Make fitness function
-    fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
+    # fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
+    fitness_function = make_fitness_function(ga_problem.constraints, ga_problem.ode_problem)
 
     #* Run the optimization.
     result = Evolutionary.optimize(fitness_function, zeros(3), boxconstraints, mthd, population, opts)
