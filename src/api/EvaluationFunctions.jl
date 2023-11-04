@@ -57,6 +57,13 @@ function getPerAmp(sol::OS) where OS <: ODESolution
     return getPerAmp(sol.t, indx_max, vals_max, indx_min, vals_min)
 end
 
+function getPerAmp(Amem_sol, solt) 
+
+    indx_max, vals_max, indx_min, vals_min = findextrema(Amem_sol; min_height=0.1)
+    # indx_min, vals_min = findextrema(Amem_sol; height = 0.0, distance = 5, find_maxima=false)
+    return getPerAmp(solt, indx_max, vals_max, indx_min, vals_min)
+end
+
 """Calculates the period and amplitude of each individual in the population"""
 function getPerAmp(solt, indx_max::Vector{Int}, vals_max::Vector{Float64}, indx_min::Vector{Int}, vals_min::Vector{Float64})
 
