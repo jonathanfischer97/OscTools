@@ -21,8 +21,8 @@ Return the real-valued FFT of a timeseries, will be half the length of the times
 """
 function getFrequencies(timeseries::Vector{Float64}; jump::Int = 2) 
     # rfft_result = rfft(@view timeseries[1:2:end])
-    # sampled_timeseries = @view timeseries[1:jump:end]
-    rfft_result = rfft(timeseries)
+    sampled_timeseries = @view timeseries[1:jump:end]
+    rfft_result = rfft(sampled_timeseries)
     norm_val = cld(length(timeseries), 2) #* normalize by length of timeseries
     abs.(rfft_result) ./ norm_val
 end
@@ -50,7 +50,7 @@ end
 """Calculates the period and amplitude of each individual in the population"""
 function getPerAmp(sol::OS) where OS <: ODESolution
 
-    Amem_sol = @views sol[6,:] + sol[9,:] + sol[10,:]+ sol[11,:] + sol[12,:]+ sol[15,:] + sol[16,:]
+    Amem_sol = sol[6,:] .+ sol[9,:] .+ sol[10,:] .+ sol[11,:] .+ sol[12,:] .+ sol[15,:] .+ sol[16,:]
 
     indx_max, vals_max, indx_min, vals_min = findextrema(Amem_sol; min_height=0.1)
     # indx_min, vals_min = findextrema(Amem_sol; height = 0.0, distance = 5, find_maxima=false)
@@ -114,7 +114,7 @@ Core fitness function logic that takes in the solution and time array and return
 # Returns
 -[fitness, period, amplitude] Note that a nonzero fitness indicates an oscillatory solution
 """
-function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64}) #where {FT<:FFTW.rFFTWPlan}
+function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
 
     #* Check if the solution is steady state
     # if is_steadystate(solu, solt)
@@ -241,7 +241,7 @@ function solve_odeprob(prob::OP, idx=[6, 9, 10, 11, 12, 15, 16]) where OP <: ODE
 
     #* solve the ODE and only save the last 90% of the solution
     savepoints = tstart:0.1:prob.tspan[2]
-    solve(prob, Rodas5P(), saveat=savepoints, save_idxs=idx, verbose=false, maxiters=1e6)
+    solve(prob, Rosenbrock23(), saveat=savepoints, save_idxs=idx, verbose=false, maxiters=1e6)
 end
 
 """Utility function to call ODE solver and return the fitness and period/amplitude"""

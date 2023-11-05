@@ -279,7 +279,7 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
 
     #* Make fitness function
     # fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
-    fitness_function = make_fitness_function(ga_problem.constraints, ga_problem.ode_problem)
+    fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
 
     #* Run the optimization.
     result = Evolutionary.optimize(fitness_function, zeros(3), boxconstraints, mthd, population, opts)
@@ -406,7 +406,6 @@ end
 #     end
 #     return population
 # end
-
 
 
 # """### Callback function that terminates the GA if the number of oscillations exceeds the threshold, and updates the progress bar"""

@@ -4,11 +4,11 @@
 
 #< Plotting utilities for testing
 # Function to apply default settings to a plot
-function apply_default_settings(p)
-        plot!(p, lw=3, size=(1000, 600), dpi=200,
-              bottom_margin=12px, left_margin=16px, top_margin=10px, right_margin=8px)
-        return p
-end
+# function apply_default_settings(p)
+#         plot!(p, lw=3, size=(1000, 600), dpi=200,
+#               bottom_margin=12px, left_margin=16px, top_margin=10px, right_margin=8px)
+#         return p
+# end
 
 
 """
@@ -118,7 +118,7 @@ function plotfft(sol::ODESolution, Amem = calculate_Amem(sol))
                 scatter!(p2, fft_peakindexes, fft_peakvals, text = peaklabels, color = :red, markersize = 5, label="")
                 vline!(p2, stdlines, color = :blue, label = "")
                 
-                return plot(p1, p2) |> apply_default_settings
+                return plot(p1, p2) #|> apply_default_settings
         end
 end
 
@@ -148,7 +148,7 @@ function plotboth(dfrow::DataFrameRow, prob::ODEProblem; vars::Vector{Int} = col
         plotboth(reprob; vars = vars)
 end
 
-function plotboth(prob::ODEProblem; vars::Vector{Int} = collect(1:length(prob.u0)))
+function plotboth(prob::ODEProblem; vars::Vector{Int} = collect(eachindex(prob.u0)))
         sol = solve_odeprob(prob, vars)
 
         plotboth(sol)
