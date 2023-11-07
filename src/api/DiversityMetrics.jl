@@ -25,18 +25,45 @@ end
 
 
 
-function get_spread(S::AbstractMatrix)
+# function get_spread(S::AbstractMatrix{Float64}) 
+#     n = size(S,2) # number of individuals
+#     n == 1 && return NaN # if there is only one individual, return NaN
+
+#     # Compute pairwise Euclidean distances
+#     dists = Matrix{Float64}(undef, n, n)
+#     return get_spread!(dists, S)
+# end
+
+# function get_spread!(dists::Matrix{Float64}, S::AbstractMatrix{Float64}) 
+#     pairwise!(Euclidean(), dists, S, dims=2)
+
+#     # Replace diagonal of distance matrix with Inf to exclude self-distances
+#     dists[diagind(dists)] .= Inf
+
+#     n = size(S,2) # number of individuals
+
+#     # Compute minimum distance for each individual
+#     Δₖ = [minimum(col) for col in eachcol(dists)]
+
+#     # Compute mean minimum distance
+#     Δ = mean(Δₖ)
+
+#     # Compute spread metric by summing the absolute difference between each minimum distance and the mean, scaled by the mean
+#     sum(abs.(Δₖ.-Δ))/n*Δ
+# end
+
+function get_spread(S::AbstractMatrix{Float64}) 
     n = size(S,2) # number of individuals
     n == 1 && return NaN # if there is only one individual, return NaN
 
-    # Compute pairwise Euclidean distances
-    dists = pairwise(Euclidean(), S, dims=2)
+    # Create a KDTree with Euclidean metric
+    kdtree = KDTree(S)
 
-    # Replace diagonal of distance matrix with Inf to exclude self-distances
-    dists[diagind(dists)] .= Inf
+    # Find the nearest neighbor for each point
+    _, dists = knn(kdtree, S, 2, true)
 
     # Compute minimum distance for each individual
-    Δₖ = [minimum(dists[:,i]) for i in 1:n]
+    Δₖ = getindex.(dists, 2)
 
     # Compute mean minimum distance
     Δ = mean(Δₖ)

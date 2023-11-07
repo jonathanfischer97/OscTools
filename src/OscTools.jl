@@ -11,6 +11,7 @@ module OscTools
     using ColorSchemes, Plots.PlotMeasures
     using Clustering
     using Distances
+    using NearestNeighbors
 
 
 
