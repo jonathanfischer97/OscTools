@@ -54,7 +54,7 @@ module OscTools
 
     #include diversity metrics
     include("api/DiversityMetrics.jl")
-    export getmax_pairwise_diversity
+    export getmax_pairwise_diversity, get_spread, get_shannon_index
 
     #include testing functions
     include("api/TestingFunctions.jl")

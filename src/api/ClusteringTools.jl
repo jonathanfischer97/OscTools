@@ -3,7 +3,6 @@
 Converts the population of a GAResults object to a matrix.
 """
 function population_to_matrix(results::GAResults)
-    # return hcat(results.population...)'
     stack(results.population)
 end
 
@@ -72,15 +71,12 @@ function silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sampl
     # Loop through each unique label to sample data points
     for lbl in unique_labels
         idx = findall(x -> x == lbl, labels)
-        # @info "Label: $lbl, Indexes: $idx"
 
         # Determine how many samples to take from this label, considering available data points
         n_samples = min(sample_size, length(idx))
-        # @info "Number of samples: $n_samples"
 
         # Sample indices without replacement, but only up to the number available
         sampled_indices = sample(idx, n_samples, replace=false)
-        # @info "Sampled indices: $sampled_indices"
 
         append!(sampled_idx, sampled_indices)
     end
@@ -215,7 +211,6 @@ function get_cluster_distances(result::ClusteringResult)
     dist_matrix = pairwise(Euclidean(), result.centers, result.centers)
     return dist_matrix
 end
-
 
 
 
