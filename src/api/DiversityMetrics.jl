@@ -1,13 +1,42 @@
-"""
-    getmax_pairwise_diversity(population::AbstractMatrix{Float64})
+# """
+#     getmax_pairwise_diversity(population::AbstractMatrix{Float64})
 
-Computes the maximum pairwise distance as a diversity metric for a population of individuals.
+# Computes the maximum pairwise distance as a diversity metric for a population of individuals.
+# """
+# function getmax_pairwise_diversity(population::AbstractMatrix{Float64}, method=Euclidean())
+
+#     n = size(population, 2) # number of individuals
+    
+#     distance_matrix = Matrix{Float64}(undef, n, n)
+    
+#     return getmax_pairwise_diversity!(distance_matrix, population, method)
+# end
+
+# function getmax_pairwise_diversity!(distance_matrix, population::AbstractMatrix{Float64}, method=Euclidean())
+
+#     pairwise!(method, distance_matrix, population, dims=2)
+    
+#     return maximum(triu(distance_matrix))
+# end
+
+"""
+    getmax_pairwise_diversity(population::AbstractMatrix{Float64}, method=Euclidean())
+
+Computes the maximum pairwise distance as a diversity metric for a population of individuals. Non-allocating.
 """
 function getmax_pairwise_diversity(population::AbstractMatrix{Float64}, method=Euclidean())
-    
-    distances = pairwise(method, population, dims=2)
-    
-    return maximum(triu(distances))
+    max_dist = 0.0
+    n = size(population, 2) # assuming each row is an individual
+
+    for i in 1:n
+        for j in i+1:n
+            # Calculate distance between the i-th and j-th individual
+            dist = Distances.evaluate(method, view(population, :, i), view(population, :, j))
+            max_dist = max(max_dist, dist)
+        end
+    end
+
+    return max_dist
 end
 
 function getmax_pairwise_diversity(population::Vector{Vector{Float64}}, method=Euclidean())
@@ -19,6 +48,48 @@ end
 function getmax_pairwise_diversity(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :relamp, :DF], method=Euclidean())
     dfmat = df_to_matrix(df, exclude_cols)
     return getmax_pairwise_diversity(dfmat, method)
+end
+
+
+"""
+    get_nearest_neighbor(S::AbstractMatrix{Float64})
+
+Uses `KDTree` to search the nearest neighbor distance for each individual in a population of individuals.
+"""
+function get_nearest_neighbor(S::Matrix{Float64})::Vector{Float64}
+
+    # Create a KDTree with Euclidean metric
+    kdtree = KDTree(S)
+
+    # Find the nearest neighbor for each point
+    _, dists = knn(kdtree, S, 2, true)
+
+    # Compute minimum distance for each individual
+    getindex.(dists, 2)
+end
+
+
+"""
+    get_nearest_neighbor2(population::AbstractMatrix{Float64})
+
+Non-allocating version of `get_nearest_neighbor`.
+"""
+function get_nearest_neighbor2(population::Matrix{Float64}, method=Euclidean())
+    n = size(population, 2) # assuming each col is an individual
+
+    min_dists = Vector{Float64}(undef, n)
+
+    for i in 1:n
+        i_min_dist = Inf
+        for j in i+1:n
+            # Calculate distance between the i-th and j-th individual
+            dist = Distances.evaluate(method, view(population, :, i), view(population, :, j))
+            i_min_dist = min(i_min_dist, dist)
+        end
+        min_dists[i] = i_min_dist
+    end
+
+    return min_dists
 end
 
 
@@ -52,18 +123,12 @@ end
 #     sum(abs.(Δₖ.-Δ))/n*Δ
 # end
 
-function get_spread(S::AbstractMatrix{Float64}) 
+function get_spread(S::Matrix{Float64}) 
     n = size(S,2) # number of individuals
     n == 1 && return NaN # if there is only one individual, return NaN
 
-    # Create a KDTree with Euclidean metric
-    kdtree = KDTree(S)
-
-    # Find the nearest neighbor for each point
-    _, dists = knn(kdtree, S, 2, true)
-
     # Compute minimum distance for each individual
-    Δₖ = getindex.(dists, 2)
+    Δₖ = get_nearest_neighbor(S)
 
     # Compute mean minimum distance
     Δ = mean(Δₖ)

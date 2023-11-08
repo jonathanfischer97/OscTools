@@ -16,18 +16,18 @@ function get_kmeans(results::GAResults, k::Int)
 end
 
 """
-    df_to_matrix(df::DataFrame, exclude_cols::Vector{Symbol})
+    df_to_matrix(df::AbstractDataFrame, exclude_cols::Vector{Symbol})
 Converts a DataFrame to a transposed matrix while excluding the fixed columns.
 """
-function df_to_matrix(df::DataFrame, exclude_cols::Vector{Symbol})
-    return Matrix(df[:, Not(exclude_cols)]) |> transpose
+function df_to_matrix(df::AbstractDataFrame, exclude_cols::Vector{Symbol} = Symbol[])
+    Matrix{Float64}(df[:, Not(exclude_cols)]) |> permutedims
 end
 
 """
-    kmeans(df::DataFrame, clusters::Int, exclude_cols::Vector{Symbol})
+    kmeans(df::AbstractDataFrame, clusters::Int, exclude_cols::Vector{Symbol})
 Performs k-means clustering on a DataFrame while excluding the fixed columns, returns a ClusteringResult object.
 """
-function get_kmeans(df::DataFrame, k::Int, exclude_cols::Vector{Symbol} = Symbol[])
+function get_kmeans(df::AbstractDataFrame, k::Int, exclude_cols::Vector{Symbol} = Symbol[])
     data_matrix = df_to_matrix(df, exclude_cols)
     return kmeans(data_matrix, k)
 end
@@ -36,10 +36,10 @@ end
 
 
 """
-    identify_fixed_columns(df::DataFrame)
+    identify_fixed_columns(df::AbstractDataFrame)
 Identifies columns in a dataframe that have only one unique value, returns a vector of symbols of the independent variables (excludes gen, fit, per, amp).
 """
-function identify_fixed_columns(df::DataFrame)
+function identify_fixed_columns(df::AbstractDataFrame)
     fixed_cols = Symbol[]
     for col in propertynames(df)
         if length(unique(df[!, col])) == 1
@@ -165,10 +165,17 @@ Find the optimal number of clusters for a given data matrix using silhouette sco
 - Returns 1 if the data matrix is empty or if max_k is less than 2.
 """
 function get_optimal_clusters(data_matrix::AbstractMatrix{Float64}, max_k::Int)::Int
-    #* Handle edge cases: empty data matrix or max_k < 2
-    if isempty(data_matrix) || max_k < 2
+    n = size(data_matrix, 2)
+    
+    if max_k > n
+        max_k = n
+    elseif n < 2
         return 1
     end
+
+    # if isempty(data_matrix) || max_k < 2
+    #     return 1
+    # end
 
     #* Initialize variables to store the best silhouette score and corresponding k
     best_score = -Inf
@@ -190,15 +197,15 @@ function get_optimal_clusters(data_matrix::AbstractMatrix{Float64}, max_k::Int):
 end
 
 """
-    get_optimal_clusters(df::DataFrame, max_k::Int, exclude_cols::Vector{Symbol} = [])
+    get_optimal_clusters(df::AbstractDataFrame, max_k::Int, exclude_cols::Vector{Symbol} = [])
 Wrapper function for optimal_kmeans_clusters that converts a DataFrame to a Matrix, and returns the optimal cluster count.
 """
-function get_optimal_clusters(df::DataFrame, max_k::Int, exclude_cols::Vector{Symbol} = [])
-    if max_k > nrow(df)
-        max_k = nrow(df)
-    elseif nrow(df) < 2
-        return 1
-    end
+function get_optimal_clusters(df::AbstractDataFrame, max_k::Int, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :relamp, :DF])
+    # if max_k > nrow(df)
+    #     max_k = nrow(df)
+    # elseif nrow(df) < 2
+    #     return 1
+    # end
     data_matrix = df_to_matrix(df, exclude_cols)
     return get_optimal_clusters(data_matrix, max_k)
 end
@@ -214,7 +221,7 @@ end
 
 
 
-function get_pca_model(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :relamp]; maxoutdim=3)
+function get_pca_model(df::AbstractDataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :relamp, :DF]; maxoutdim=3)
     data_matrix = df_to_matrix(df, exclude_cols)
     return fit(PCA, data_matrix, maxoutdim=maxoutdim)
 end

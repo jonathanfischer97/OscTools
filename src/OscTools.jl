@@ -41,6 +41,10 @@ module OscTools
             generate_population, generate_empty_population, generate_population!, logrange,
             GAResults, run_GA
 
+        # import the differential evolution algorithm and associated functions
+        include("api/DE_functions.jl")
+        export DifferentialEvolutionProblem, DifferentialEvolutionResults, run_DE
+
     #include the file utilities
     include("api/FileUtils.jl")
     export read_csvs_in_directory, save_to_csv, make_ga_dataframe, make_pop_dataframe
