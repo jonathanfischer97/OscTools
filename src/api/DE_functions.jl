@@ -14,7 +14,7 @@ Struct encapsulating a Differential Evolution (DE) optimization problem. It hold
 end
 
 # show method overload for DEProblem
-function Base.show(io::IO, ::MIME"text/plain", prob::DEProblem) 
+function Base.show(io::IO, ::MIME"text/plain", prob::DifferentialEvolutionProblem) 
     printstyled(io, typeof(prob.constraints), ":\n"; bold = true, underline=true, color = :green)
     printstyled(io, prob.constraints, "\n")
     printstyled(io, "\nNominal parameter values:\n"; bold = true, color = :blue)

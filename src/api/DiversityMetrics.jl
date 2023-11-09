@@ -161,9 +161,9 @@ Calculate the Shannon diversity index for a given clustering result.
 - `Float64`: The Shannon diversity index.
 """
 function get_shannon_index(cr::ClusteringResult)
-    n = nclusters(cr) # get the number of clusters
+    # n = nclusters(cr) # get the number of clusters
     p = wcounts(cr) / sum(wcounts(cr)) # get the proportions of each cluster
-    H = -sum(p .* log.(p)) # compute the Shannon Index
+    H = -sum(p .* log2.(p)) # compute the Shannon Index
     return H
 end
 

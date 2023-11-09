@@ -22,5 +22,5 @@ function test4fixedGA(popsize=10000, fixedsymbols = [:DF, :K, :P, :A], fixedvalu
     #* Run the GA
     ga_results = run_GA(ga_problem, population; kwargs...)
 
-    return make_ga_dataframe(ga_results, ga_problem.constraints)
+    return make_ga_dataframe(ga_results, ga_problem.constraints), ga_results.oscillatory_idxs
 end

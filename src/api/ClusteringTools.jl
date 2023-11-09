@@ -53,43 +53,105 @@ end
 
 
 
+# """
+#     silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sample_size::Int=100)
+# Computes the silhouette score for a sample of data and labels.
+# """
+# function silhouette_score(X::Matrix{Float64}, labels::Vector{Int}, sample_size::Int=1000)
+#     # Get the unique labels and total number of data points
+#     unique_labels = unique(labels)
+#     total_points = size(X, 2)
+
+#     # Limit sample_size to the number of available data points
+#     sample_size = min(sample_size, total_points)
+
+#     # Preallocate array for sampled indices
+#     sampled_idx = Int[]
+
+#     # Loop through each unique label to sample data points
+#     for lbl in unique_labels
+#         label_idxs = findall(x -> x == lbl, labels)
+
+#         # Determine how many samples to take from this label, considering available data points
+#         n_samples = min(sample_size, length(label_idxs))
+
+#         # Sample indices without replacement, but only up to the number available
+#         sampled_indices = sample(label_idxs, n_samples, replace=false)
+
+#         append!(sampled_idx, sampled_indices)
+#     end
+
+#     # Extract sampled data and labels
+#     sampled_X = X[:, sampled_idx]
+#     sampled_labels = labels[sampled_idx]
+
+#     # Calculate pairwise distances and compute silhouette values
+#     dist_matrix = pairwise(Euclidean(), sampled_X, dims=2)
+#     sils = silhouettes(sampled_labels, dist_matrix)
+
+#     return mean(sils)
+# end
+
+
+
 """
-    silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sample_size::Int=100)
-Computes the silhouette score for a sample of data and labels.
+    silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sample_size::Int=1000)::Float64
+
+Compute the silhouette score for a sample of data and labels.
+
+# Arguments
+- `X::AbstractMatrix{Float64}`: The data matrix where each column is a data point.
+- `labels::Vector{Int}`: The cluster assignments of each data point.
+- `sample_size::Int`: The number of samples to use for the calculation (default is 1000).
+
+# Returns
+- `Float64`: The average silhouette score for the sample.
+
+# Note
+- The function samples data points proportionally from each cluster.
 """
-function silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sample_size::Int=100)
-    # Get the unique labels and total number of data points
+function silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sample_size::Int=1000)::Float64
     unique_labels = unique(labels)
-    total_points = size(X, 2)
+    n_labels = length(unique_labels)
+    n_samples_per_label = sample_size ÷ n_labels
+    n = size(X, 2)
 
-    # Limit sample_size to the number of available data points
-    sample_size = min(sample_size, total_points)
+    sampled_indices = Int[]
 
-    # Preallocate array for sampled indices
-    sampled_idx = Int[]
-
-    # Loop through each unique label to sample data points
-    for lbl in unique_labels
-        idx = findall(x -> x == lbl, labels)
-
-        # Determine how many samples to take from this label, considering available data points
-        n_samples = min(sample_size, length(idx))
-
-        # Sample indices without replacement, but only up to the number available
-        sampled_indices = sample(idx, n_samples, replace=false)
-
-        append!(sampled_idx, sampled_indices)
+    # Proportionally sample from each cluster without exceeding the total sample size
+    for label in unique_labels
+        label_indices = findall(x -> x == label, labels)
+        n_label_samples = min(length(label_indices), n_samples_per_label, sample_size - length(sampled_indices))
+        sampled_indices = [sampled_indices; sample(label_indices, n_label_samples, replace = false)]
     end
 
-    # Extract sampled data and labels
-    sampled_X = X[:, sampled_idx]
-    sampled_labels = labels[sampled_idx]
+    sampled_X = X[:, sampled_indices]
+    sampled_labels = labels[sampled_indices]
 
-    # Calculate pairwise distances and compute silhouette values
-    dist_matrix = pairwise(Euclidean(), sampled_X, sampled_X)
-    sils = silhouettes(sampled_labels, dist_matrix)
+    # Compute the distance matrix once
+    dist_matrix = pairwise(Euclidean(), sampled_X, dims=2)
 
-    return mean(sils)
+    sil_scores = Float64[]
+    for i in eachindex(sampled_indices)
+        own_cluster_indices = findall(x -> x == sampled_labels[i], sampled_labels)
+
+        # Intra-cluster distance (a)
+        a = mean(dist_matrix[i, own_cluster_indices])
+
+        # Nearest-cluster distance (b)
+        b = Inf
+        for other_label in setdiff(unique_labels, [sampled_labels[i]])
+            other_cluster_indices = findall(x -> x == other_label, sampled_labels)
+            b = min(b, mean(dist_matrix[i, other_cluster_indices]))
+        end
+
+        # Silhouette score for this sample
+        score = (b - a) / max(a, b)
+        push!(sil_scores, score)
+    end
+
+    # Return the average silhouette score
+    return mean(sil_scores)
 end
 
 
@@ -184,7 +246,10 @@ function get_optimal_clusters(data_matrix::AbstractMatrix{Float64}, max_k::Int):
     #* Compute silhouette scores for k from 2 to max_k
     for k in 2:max_k
         result = kmeans(data_matrix, k) 
-        score = silhouette_score(data_matrix, assignments(result))
+        dist_matrix = pairwise(Euclidean(), data_matrix, dims=2)
+        score = mean(silhouettes(assignments(result), dist_matrix))
+        # score = silhouette_score(data_matrix, assignments(result))
+
 
         #* Update best score and best k if a better score is found
         if score > best_score

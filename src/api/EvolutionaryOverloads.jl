@@ -19,19 +19,30 @@ Evolutionary.value(s::CustomGAState) = s.fittestValue #return the fitness of the
 Evolutionary.minimizer(s::CustomGAState) = s.fittestInd #return the fittest individual
 
 
-"""Trace override function"""
-function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::GA, options) 
-    # oscillatory_population_idxs = findall(fit -> fit > 0.0, state.fitvals) #find the indices of the oscillatory individuals
-    oscillatory_population_idxs = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
+# """Trace override function"""
+# function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::GA, options) 
+#     # oscillatory_population_idxs = findall(fit -> fit > 0.0, state.fitvals) #find the indices of the oscillatory individuals
+#     oscillatory_population_idxs = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
 
-    record["population"] = deepcopy(population[oscillatory_population_idxs])
-    # valarray = copy(view(state.valarray,:,oscillatory_population_idxs))
-    # record["fitvals"] = valarray[1,:]
-    # record["periods"] = valarray[2,:]
-    # record["amplitudes"] = valarray[3,:]
-    record["fitvals"] = state.fitvals[oscillatory_population_idxs]
-    record["periods"] = state.periods[oscillatory_population_idxs]
-    record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
+#     record["population"] = deepcopy(population[oscillatory_population_idxs])
+#     # valarray = copy(view(state.valarray,:,oscillatory_population_idxs))
+#     # record["fitvals"] = valarray[1,:]
+#     # record["periods"] = valarray[2,:]
+#     # record["amplitudes"] = valarray[3,:]
+#     record["fitvals"] = state.fitvals[oscillatory_population_idxs]
+#     record["periods"] = state.periods[oscillatory_population_idxs]
+#     record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
+# end
+
+"""Testing trace override function. Saves all solutions"""
+function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::GA, options) 
+    record["oscillatory_idxs"] = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
+
+    record["population"] = deepcopy(population)
+
+    record["fitvals"] = state.fitvals
+    record["periods"] = state.periods
+    record["amplitudes"] = state.amplitudes
 end
 
 """Show override function to prevent printing large arrays"""
@@ -155,53 +166,53 @@ function generate_new_individuals!(new_inds, constraints::CT) where CT <: BoxCon
     return new_inds
 end
 
-"""
-    unique_tournament_bitarray(groupSize::Int; select=argmax)
+# """
+#     unique_tournament_bitarray(groupSize::Int; select=argmax)
 
-Returns a function that performs a unique tournament selection of `groupSize` individuals from a population. 
+# Returns a function that performs a unique tournament selection of `groupSize` individuals from a population. 
 
-- WARNING: number of selected will be < N if N is `populationsize`, so offspring array won't be filled completely
-"""
-function unique_tournament_bitarray(groupSize::Int; select=argmax)
-    @assert groupSize > 0 "Group size must be positive"
-    function tournamentN(fitness::AbstractVecOrMat{<:Real}, N_selected::Int;
-                         rng::AbstractRNG=Random.GLOBAL_RNG)
-        sFitness = size(fitness)
-        d, nFitness = length(sFitness) == 1 ? (1, sFitness[1]) : sFitness
-        selected_flags = falses(nFitness)  # BitArray
-        selection = Vector{Int}(undef, N_selected)
+# - WARNING: number of selected will be < N if N is `populationsize`, so offspring array won't be filled completely
+# """
+# function unique_tournament_bitarray(groupSize::Int; select=argmax)
+#     @assert groupSize > 0 "Group size must be positive"
+#     function tournamentN(fitness::AbstractVecOrMat{<:Real}, N_selected::Int;
+#                          rng::AbstractRNG=Random.GLOBAL_RNG)
+#         sFitness = size(fitness)
+#         d, nFitness = length(sFitness) == 1 ? (1, sFitness[1]) : sFitness
+#         selected_flags = falses(nFitness)  # BitArray
+#         selection = Vector{Int}(undef, N_selected)
         
-        count = 1
-        while count <= N_selected
-            tour = randperm(rng, nFitness)
-            j = 1
-            while (j+groupSize) <= nFitness && count <= N_selected
-                idxs = tour[j:j+groupSize-1]
-                idxs = filter(x -> !selected_flags[x], idxs)  # Remove already selected
+#         count = 1
+#         while count <= N_selected
+#             tour = randperm(rng, nFitness)
+#             j = 1
+#             while (j+groupSize) <= nFitness && count <= N_selected
+#                 idxs = tour[j:j+groupSize-1]
+#                 idxs = filter(x -> !selected_flags[x], idxs)  # Remove already selected
                 
-                if isempty(idxs)
-                    j += groupSize
-                    continue
-                end
+#                 if isempty(idxs)
+#                     j += groupSize
+#                     continue
+#                 end
                 
-                selected = d == 1 ? view(fitness, idxs) : view(fitness, :, idxs)
-                winner = select(selected)
-                winner_idx = idxs[winner]
+#                 selected = d == 1 ? view(fitness, idxs) : view(fitness, :, idxs)
+#                 winner = select(selected)
+#                 winner_idx = idxs[winner]
                 
-                if !selected_flags[winner_idx]
-                    selection[count] = winner_idx
-                    selected_flags[winner_idx] = true
-                    count += 1
-                end
+#                 if !selected_flags[winner_idx]
+#                     selection[count] = winner_idx
+#                     selected_flags[winner_idx] = true
+#                     count += 1
+#                 end
                 
-                j += groupSize
-            end
-        end
+#                 j += groupSize
+#             end
+#         end
         
-        return selection
-    end
-    return tournamentN
-end
+#         return selection
+#     end
+#     return tournamentN
+# end
 
 
 #< OBJECTIVE FUNCTION OVERRIDES ##

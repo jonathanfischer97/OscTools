@@ -72,7 +72,9 @@ end
 
 #< DATAFRAME UTILITIES ##
 """
-Makes a DataFrame from the results of a GA optimization
+    make_ga_dataframe(results::GAResults, constraints::ConstraintSet)
+
+Makes a DataFrame from a GAResults object.
 """
 function make_ga_dataframe(results::GAResults, constraints::ConstraintSet)
     df = DataFrame(gen = Vector{Int}(undef, length(results.fitvals)), fit = results.fitvals, per = results.periods, amp = results.amplitudes, relamp = Vector{Float64}(undef, length(results.fitvals)))
@@ -95,6 +97,7 @@ function make_ga_dataframe(results::GAResults, constraints::ConstraintSet)
     if !isempty(df.A)
         df.relamp .= df.amp ./ df.A
     end
+    df.gen = categorical(df.gen)
     return df
 end
 
@@ -115,3 +118,4 @@ function make_pop_dataframe(pop::Vector{Vector{Float64}}, constraints::AllConstr
     return df
 end
 #> END ##
+

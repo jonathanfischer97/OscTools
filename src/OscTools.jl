@@ -12,6 +12,7 @@ module OscTools
     using Clustering
     using Distances
     using NearestNeighbors
+    using CategoricalArrays
 
 
 

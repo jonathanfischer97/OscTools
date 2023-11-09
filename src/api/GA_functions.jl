@@ -193,6 +193,7 @@ logrange(start, stop, length::Int) = exp10.(collect(range(start=log10(start), st
 "Struct to hold the results of a GA optimization"
 struct GAResults 
     # trace::Vector{Evolutionary.OptimizationTraceRecord}
+    oscillatory_idxs::Vector{Int}
     population::Vector{Vector{Float64}}
     fitvals::Vector{Float64}
     periods::Vector{Float64}
@@ -206,6 +207,7 @@ function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constra
     numpoints = sum(length, (gen.metadata["fitvals"] for gen in result.trace))
 
     indlength = activelength(constraintset)
+    oscillatory_idxs = Int[]
     population = [Vector{Float64}(undef, indlength) for _ in 1:numpoints]
     fitvals = Vector{Float64}(undef, numpoints)
     periods = Vector{Float64}(undef, numpoints)
@@ -217,6 +219,8 @@ function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constra
         endidx = startidx + length(gen.metadata["population"]) - 1
 
         push!(gen_indices, (startidx, endidx))
+
+        append!(oscillatory_idxs, gen.metadata["oscillatory_idxs"])
 
         population[startidx:endidx] .= gen.metadata["population"]
   
@@ -230,7 +234,7 @@ function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constra
     end
 
     fixed_names = get_fixed_names(constraintset)
-    return GAResults(population, fitvals, periods, amplitudes, gen_indices, fixed_names)
+    return GAResults(oscillatory_idxs, population, fitvals, periods, amplitudes, gen_indices, fixed_names)
 end
 #> END ##
 
