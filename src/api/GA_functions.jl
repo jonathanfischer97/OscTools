@@ -81,6 +81,10 @@ function make_fitness_function(constraints::CT, ode_problem::OP) where {CT<:Cons
 
         Amem_sol = map(sum, sol.u)
 
+        #* Normalize signal to be relative to total AP2 concentration
+        # @info "Initial AP2: $(local_merged_input[17])"
+        Amem_sol ./= local_merged_input[17]
+
         max_idxs, max_vals, min_idxs, min_vals = findextrema(Amem_sol, min_height=0.1)
 
         period = 0.0

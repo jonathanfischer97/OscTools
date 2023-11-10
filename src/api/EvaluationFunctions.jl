@@ -1,8 +1,26 @@
 #< COST FUNCTION HELPER FUNCTIONS ##
-"""Get summed difference of the peak values from the FFT of the solution"""
+"""Get average difference of the first and last peak values from the FFT of the solution"""
 function getDif(peakvals::Vector{Float64})
     (peakvals[begin] - peakvals[end])/length(peakvals)
 end
+
+function getWeightedAvgPeakDiff(peakvals::Vector{Float64}, peakfreqs::Vector{Float64})
+    # Assuming peakfreqs are sorted in ascending order
+    n = length(peakvals)
+    if n < 2
+        return 0.0
+    end
+
+    # Weights inversely proportional to frequency (higher weight for lower frequency)
+    weights = 1.0 ./ peakfreqs
+    total_weight = sum(weights[1:end-1])
+
+    # Weighted average of absolute differences
+    weighted_diff = sum(weights[i] * abs(peakvals[i+1] - peakvals[i]) for i in 1:n-1) / total_weight
+
+    return weighted_diff
+end
+
 
 """Get summed average standard deviation of peaks values from the FFT of the solution"""
 function getSTD(fft_peakindxs::Vector{Int}, fft_arrayData; window::Int =1) #get average standard deviation of fft peak indexes
@@ -11,7 +29,7 @@ function getSTD(fft_peakindxs::Vector{Int}, fft_arrayData; window::Int =1) #get 
     #window = max(1,cld(arrLen,window_ratio)) #* window size is 1% of array length, or 1 if array length is less than 100
     sum_std = sum(std(@view fft_arrayData[max(1, ind - window):min(arrLen, ind + window)]) for ind in fft_peakindxs; init=0.0) #* sum rolling window of standard deviations
 
-    return sum_std / (length(fft_peakindxs) + 1) #* divide by number of peaks to get average std, add 1 to avoid divide by zero
+    return sum_std / length(fft_peakindxs) #* divide by number of peaks to get average std, add 1 to avoid divide by zero
 end 
 
 """
@@ -70,7 +88,7 @@ function getPerAmp(solt, indx_max::Vector{Int}, vals_max::Vector{Float64}, indx_
     pers = (solt[indx_max[i+1]] - solt[indx_max[i]] for i in 1:(length(indx_max)-1))
     amps = (vals_max[i] - vals_min[i] for i in 1:min(length(indx_max), length(indx_min)))
 
-    return mean(pers), mean(amps) #.|> abs 
+    return mean(pers), mean(amps) 
 end
 #> END OF PERIOD AND AMPLITUDE FUNCTIONS ##
 
@@ -139,21 +157,32 @@ end
 
 #< SPLIT FITNESS FUNCTION AND OSCILLATION DETECTION ##
 function get_fitness!(solu::Vector{Float64})
-    #* Get the rfft of the solution and normalize it
+
+    #* Reuse the same time array to preallocate the fft array
     fftData = @view solu[1:(length(solu) ÷ 4) + 1] 
-    fftData = getFrequencies!(fftData, solu) |> normalize_time_series!
+
+    #* Get the rfft of the solution and normalize it
+    fftData = getFrequencies!(fftData, solu) #|> normalize_time_series!
 
     #* get the indexes of the peaks in the fft
-    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData; distance = 1) 
+    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData) 
+    # @info "First peak value: $(fft_peakvals[1])"
+    # @info "Last peak value: $(fft_peakvals[end])"
+
+    if isempty(fft_peakvals)
+        return 0.0
+    end
 
     #* get the summed standard deviation of the peaks in frequency domain
     standard_deviation = getSTD(fft_peakindexes, fftData) 
+    # @info "Standard Deviation: $standard_deviation"
 
     #* get the summed difference between the first and last peaks in frequency domain
     sum_diff = getDif(fft_peakvals) 
+    # @info "Summed Difference: $sum_diff"
 
     #* add the log of the period to the standard deviation and summed difference to calculate fitness and privelage longer periods
-    return standard_deviation + sum_diff #+ log10(period)
+    return standard_deviation + sum_diff
 end
 
 #< OSCILLATION DETECTION HEURISTICS ##
@@ -185,7 +214,7 @@ end
 
 
 function is_oscillatory(solu::Vector{Float64}, solt::Vector{Float64}, max_idxs::Vector{Int}, min_idxs::Vector{Int})
-    if !is_steadystate(solu, solt) && length(max_idxs) > 2 && length(min_idxs) > 2
+    if !is_steadystate(solu, solt) && length(max_idxs) > 1 && length(min_idxs) > 1
         return true
     else
         return false

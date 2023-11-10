@@ -13,6 +13,7 @@ module OscTools
     using Distances
     using NearestNeighbors
     using CategoricalArrays
+    using Printf
 
 
 

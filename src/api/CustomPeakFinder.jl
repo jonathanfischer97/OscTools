@@ -38,9 +38,9 @@ function findmaxpeaks(x;
     end
 
     extrema_indices = midpts
-    extrema_heights = [0.0] # initial value of 0.0 so that getDif returns 0.0 if no peaks are found
-    append!(extrema_heights, x[extrema_indices]) 
-    # extrema_heights = x[extrema_indices]
+    # extrema_heights = [0.0] # initial value of 0.0 so that getDif returns 0.0 if no peaks are found
+    # append!(extrema_heights, x[extrema_indices]) 
+    extrema_heights = x[extrema_indices]
 
     extrema_indices, extrema_heights
 end

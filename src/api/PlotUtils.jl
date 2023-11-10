@@ -38,12 +38,12 @@ function plotsol(sol::ODESolution, Amem = calculate_Amem(sol); title = "")
         p = plot(sol, idxs = [1,5,2,3], title = title, xlabel = "Time (s)", ylabel = "Concentration (µM)",
                 color = [:blue :orange :purple :gold], label = ["PIP" "PIP2" "PIP5K" "Synaptojanin"], alpha = 0.7, lw = 2)
 
-        plot!(p, sol.t, Asol, label="AP2 in solution", ls = :dash, alpha=1.0, color=:gray, lw = 2)
-        plot!(p, sol.t, Amem, label = "AP2 on membrane", ls = :dash, alpha=1.0, color=:black, lw =2)
+        plot!(p, sol.t, Asol, label="AP2 in solution", alpha=1.0, color=:gray, lw = 3)
+        plot!(p, sol.t, Amem, label = "AP2 on membrane", alpha=1.0, color=:black, lw =3)
 
         #* Plot putative peaks 
-        scatter!(p, max_idxs, max_vals, label = "", color = :red, markersize = 5)
-        scatter!(p, min_idxs, min_vals, label = "", color = :red, markersize = 5)
+        scatter!(p, max_idxs, max_vals, label = "", color = :red, markersize = 5, ls = :dash)
+        scatter!(p, min_idxs, min_vals, label = "", color = :red, markersize = 5, ls = :dash)
 
 
         return p #|> apply_default_settings
@@ -88,9 +88,9 @@ function plotfft(sol::ODESolution, Amem = calculate_Amem(sol))
         frequencies_per_minute!(sol.t, solfft)
 
         #* Normalize the FFT to have mean 0 and amplitude 1
-        normalize_time_series!(solfft)
+        # normalize_time_series!(solfft)
 
-        fft_peakindexes, fft_peakvals = findmaxpeaks(solfft; distance = 1) #* get the indexes of the peaks in the fft
+        fft_peakindexes, fft_peakvals = findmaxpeaks(solfft) #* get the indexes of the peaks in the fft
         popfirst!(fft_peakindexes) #* Remove the first peak (which is always 0.0)
         
         #* If there are no peaks, return a plot with no peaks
@@ -101,11 +101,13 @@ function plotfft(sol::ODESolution, Amem = calculate_Amem(sol))
         else
                 window = 1
 
-                diffs = round(getDif(fft_peakvals); digits=4)
-                standevs = round(getSTD(fft_peakindexes, solfft; window = window);digits=4)
+                diffs = getDif(fft_peakvals)
+                diffs_string = @sprintf "%.1e" diffs
+                standevs = getSTD(fft_peakindexes, solfft; window = window)
+                standevs_string = @sprintf "%.1e" standevs
 
 
-                p1 = plot(solfft, title = "getDif: $(diffs)", xlabel = "Frequency (min⁻¹)", ylabel = "Amplitude", lw = 2, 
+                p1 = plot(solfft, title = "getDif: " * diffs_string, xlabel = "Frequency (min⁻¹)", ylabel = "Amplitude", lw = 2, 
                                 xlims = (0, min(length(solfft),fft_peakindexes[end]+50)), ylims=(0.0,min(1.0, maximum(fft_peakvals)+0.25)), label="", titlefontsize = 18, titlefontcolor = :green)
                 peaklabels = [text("$(round.(val; digits=4))", :bottom, 10) for val in fft_peakvals]
                 scatter!(p1, fft_peakindexes, fft_peakvals, text = peaklabels, label = "", color = :red, markersize = 5)
@@ -114,12 +116,12 @@ function plotfft(sol::ODESolution, Amem = calculate_Amem(sol))
                 stdlines = [maxpeak_idx - window, maxpeak_idx + window]
 
                 
-                p2 = plot(solfft, title = "getSTD: $(standevs)", xlabel = "Frequency (min⁻¹)", lw = 2, xlims = (max(0,maxpeak_idx-50), min(length(solfft),maxpeak_idx+50)), 
+                p2 = plot(solfft, title = "getSTD: " * standevs_string, xlabel = "Frequency (min⁻¹)", lw = 2, xlims = (max(0,maxpeak_idx-50), min(length(solfft),maxpeak_idx+50)), 
                                                 ylims=(0.0,min(1.0, maximum(fft_peakvals)+0.25)),label="", titlefontsize = 18, titlefontcolor = :red)
                 scatter!(p2, fft_peakindexes, fft_peakvals, text = peaklabels, color = :red, markersize = 5, label="")
                 vline!(p2, stdlines, color = :blue, label = "")
                 
-                return plot(p1, p2) #|> apply_default_settings
+                return plot(p1, p2, bottom_margin=12px, left_margin=16px, top_margin=15px, right_margin=8px) #|> apply_default_settings
         end
 end
 
@@ -151,24 +153,33 @@ end
 
 function plotboth(prob::ODEProblem; vars::Vector{Int} = collect(eachindex(prob.u0)))
         sol = solve_odeprob(prob, vars)
+        initial_AP2 = prob.u0[4]
 
-        plotboth(sol)
+        plotboth(sol; initA = initial_AP2)
 end
 
-function plotboth(sol::ODESolution)
+function plotboth(sol::ODESolution; initA)
 
         # tstart = cld(length(sol.t),10) 
         # trimsol = sol[tstart:end] 
 
-        Amem = calculate_Amem(sol)
+        Amem = calculate_Amem(sol)./initA
 
-        cost, per, amp = FitnessFunction(Amem, sol.t)
-        amp_percentage = amp/sol[4,1] #TODO fix this, producing huge values for some reason
+        max_idxs, max_vals, min_idxs, min_vals = findextrema(Amem; min_height=0.1)
+        # cost, per, amp = FitnessFunction(Amem, sol.t)
+        
+        @info "Maxima: $(max_idxs) $(max_vals)"
+        @info "Minima: $(min_idxs) $(min_vals)"
+        
+        period, amplitude = getPerAmp(sol.t, max_idxs, max_vals, min_idxs, min_vals)
+        fitness = get_fitness!(Amem)
+        
+        amp_percentage = amplitude * 100.
 
         solplot = plotsol(sol)
         fftplot = plotfft(sol)
 
-        bothplot = plot(solplot, fftplot, plot_title ="Fit: $(round(cost;digits=4))\nPeriod: $(round(per;digits=4)) s\nAmplitude: $(round(amp_percentage;digits=4)) %" , 
+        bothplot = plot(solplot, fftplot, plot_title ="Fit: $(round(fitness;digits=4)) + $(log10(period))\nPeriod: $(round(period;digits=4)) s\nAmplitude: $(round(amp_percentage;digits=4)) %" , 
                         plot_titlefontsize = 20, layout = (2,1), size = (1000, 800))
         display(bothplot)
         return bothplot
@@ -185,6 +196,7 @@ function plot_everything(df::DataFrame, prob::ODEProblem=make_ODE_problem(); jum
         # CSV.write(path*"/Set$(setnum)-$(label).csv", df)
     
         for i in 1:jump:nrow(df)
+                @info "Plotting row $(i)"
             p = plotboth(df[i,:], prob)
             savefig(p, pathdir*"/plot_$(i).png")
             next!(progbar)
@@ -205,5 +217,5 @@ function plot_everything_from_csv_indir(dirpath::String, prob::ODEProblem=make_O
         plotpath = mkpath(dirpath*"/File$(filenum)_Plots")
 
         jump = cld(nrow(df), numplots)
-        plot_everything(df, prob; jump = jump, path = plotpath)
+        plot_everything(df, prob; jump = jump, pathdir = plotpath)
 end
