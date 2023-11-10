@@ -33,8 +33,6 @@ function get_kmeans(df::AbstractDataFrame, k::Int, exclude_cols::Vector{Symbol} 
 end
 
 
-
-
 """
     identify_fixed_columns(df::AbstractDataFrame)
 Identifies columns in a dataframe that have only one unique value, returns a vector of symbols of the independent variables (excludes gen, fit, per, amp).
@@ -49,49 +47,6 @@ function identify_fixed_columns(df::AbstractDataFrame)
     push!(fixed_cols, :gen, :fit, :per, :amp, :relamp)
     return fixed_cols
 end
-
-
-
-
-# """
-#     silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sample_size::Int=100)
-# Computes the silhouette score for a sample of data and labels.
-# """
-# function silhouette_score(X::Matrix{Float64}, labels::Vector{Int}, sample_size::Int=1000)
-#     # Get the unique labels and total number of data points
-#     unique_labels = unique(labels)
-#     total_points = size(X, 2)
-
-#     # Limit sample_size to the number of available data points
-#     sample_size = min(sample_size, total_points)
-
-#     # Preallocate array for sampled indices
-#     sampled_idx = Int[]
-
-#     # Loop through each unique label to sample data points
-#     for lbl in unique_labels
-#         label_idxs = findall(x -> x == lbl, labels)
-
-#         # Determine how many samples to take from this label, considering available data points
-#         n_samples = min(sample_size, length(label_idxs))
-
-#         # Sample indices without replacement, but only up to the number available
-#         sampled_indices = sample(label_idxs, n_samples, replace=false)
-
-#         append!(sampled_idx, sampled_indices)
-#     end
-
-#     # Extract sampled data and labels
-#     sampled_X = X[:, sampled_idx]
-#     sampled_labels = labels[sampled_idx]
-
-#     # Calculate pairwise distances and compute silhouette values
-#     dist_matrix = pairwise(Euclidean(), sampled_X, dims=2)
-#     sils = silhouettes(sampled_labels, dist_matrix)
-
-#     return mean(sils)
-# end
-
 
 
 """
@@ -153,8 +108,6 @@ function silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sampl
     # Return the average silhouette score
     return mean(sil_scores)
 end
-
-
 
 # """
 #     silhouette_score(X::AbstractMatrix{Float64}, labels::Vector{Int}, sample_size::Int=100)
@@ -285,8 +238,3 @@ function get_cluster_distances(result::ClusteringResult)
 end
 
 
-
-function get_pca_model(df::AbstractDataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :relamp, :DF]; maxoutdim=3)
-    data_matrix = df_to_matrix(df, exclude_cols)
-    return fit(PCA, data_matrix, maxoutdim=maxoutdim)
-end

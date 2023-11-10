@@ -1,20 +1,20 @@
 #< CUSTOM PEAK FINDER
 function findmaxpeaks(x; 
                     height::Union{Nothing,<:Real,NTuple{2,<:Real}}=nothing,
-                    distance::Union{Nothing,Int}=nothing,
-                    find_maxima::Bool=true) #where {T<:Real}
+                    distance::Union{Nothing,Int}=nothing)#,
+                    #find_maxima::Bool=true) #where {T<:Real}
     midpts = Vector{Int}(undef, 0)
     i = 2
     imax = length(x)
 
     while i < imax
-        if (find_maxima && x[i-1] < x[i]) #|| (!find_maxima && x[i-1] > x[i])
+        if x[i-1] < x[i] #|| (!find_maxima && x[i-1] > x[i])
             iahead = i + 1
             while (iahead < imax) && (x[iahead] == x[i])
                 iahead += 1
             end
 
-            if (find_maxima && x[iahead] < x[i]) #|| (!find_maxima && x[iahead] > x[i])
+            if x[iahead] < x[i] #|| (!find_maxima && x[iahead] > x[i])
                 push!(midpts, (i + iahead - 1) ÷ 2)
                 i = iahead
             end
@@ -31,13 +31,16 @@ function findmaxpeaks(x;
 
     #* Filter by distance if needed
     if !isnothing(distance)
-        priority = find_maxima ? x[midpts] : -x[midpts] # Use negative values for minima
+        # priority = find_maxima ? x[midpts] : -x[midpts] # Use negative values for minima
+        priority = x[midpts] 
         keep = selectbypeakdistance(midpts, priority, distance)
         midpts = midpts[keep]
     end
 
     extrema_indices = midpts
-    extrema_heights = x[extrema_indices]
+    extrema_heights = [0.0] # initial value of 0.0 so that getDif returns 0.0 if no peaks are found
+    append!(extrema_heights, x[extrema_indices]) 
+    # extrema_heights = x[extrema_indices]
 
     extrema_indices, extrema_heights
 end

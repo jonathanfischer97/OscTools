@@ -1,7 +1,6 @@
 #< COST FUNCTION HELPER FUNCTIONS ##
 """Get summed difference of the peak values from the FFT of the solution"""
 function getDif(peakvals::Vector{Float64})
-    # length(peakvals) == 1 ? peakvals[1] : peakvals[1] - peakvals[end]
     (peakvals[begin] - peakvals[end])/length(peakvals)
 end
 
@@ -12,7 +11,7 @@ function getSTD(fft_peakindxs::Vector{Int}, fft_arrayData; window::Int =1) #get 
     #window = max(1,cld(arrLen,window_ratio)) #* window size is 1% of array length, or 1 if array length is less than 100
     sum_std = sum(std(@view fft_arrayData[max(1, ind - window):min(arrLen, ind + window)]) for ind in fft_peakindxs; init=0.0) #* sum rolling window of standard deviations
 
-    return sum_std / length(fft_peakindxs) #* divide by number of peaks to get average std
+    return sum_std / (length(fft_peakindxs) + 1) #* divide by number of peaks to get average std, add 1 to avoid divide by zero
 end 
 
 """
@@ -23,7 +22,7 @@ function getFrequencies(timeseries::Vector{Float64}; jump::Int = 2)
     # rfft_result = rfft(@view timeseries[1:2:end])
     sampled_timeseries = @view timeseries[1:jump:end]
     rfft_result = rfft(sampled_timeseries)
-    norm_val = cld(length(timeseries), 2) #* normalize by length of timeseries
+    norm_val = length(timeseries)/ 2 #* normalize by length of timeseries
     abs.(rfft_result) ./ norm_val
 end
 
@@ -33,7 +32,7 @@ Computes the real-valued FFT and returns it in-place to the preallocated fft_arr
 """
 function getFrequencies!(fft_array, timeseries::Vector{Float64}; jump::Int = 2) 
     rfft_result = rfft(@view timeseries[1:jump:end])
-    norm_val = cld(length(timeseries), 2) #* normalize by length of timeseries
+    norm_val = length(timeseries)/ 2 #* normalize by length of timeseries
     fft_array .= abs.(rfft_result) ./ norm_val
 end
 
@@ -75,27 +74,11 @@ function getPerAmp(solt, indx_max::Vector{Int}, vals_max::Vector{Float64}, indx_
 end
 #> END OF PERIOD AND AMPLITUDE FUNCTIONS ##
 
-#< HEURISTICS ##
-"""
-    is_steadystate(solu::Vector{Float64}, solt::Vector{Float64})
-
-Checks if the last tenth of the solution array is steady state
-"""
-function is_steadystate(solu::Vector{Float64}, solt::Vector{Float64})
-    tstart = cld(length(solt),10) 
-
-    #* Check if last tenth of the solution array is steady state
-    testwindow = solu[end-tstart:end]
-    if std(testwindow; mean=mean(testwindow)) < 0.01  
-        return true
-    else
-        return false
-    end 
-end
 
 
 
-#<< FITNESS FUNCTION ##
+
+#<< COMBINED FITNESS FUNCTION ##
 """Core fitness function logic to be plugged into eval_fitness wrapper, sums AP2 membrane species before calling FitnessFunction"""
 function FitnessFunction(sol::OS) where {OS <: ODESolution}
     Amem_sol = map(sum, sol.u) #* sum all AP2 species on the membrane to get the amplitude of the solution
@@ -154,14 +137,14 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
     end
 end
 
-
+#< SPLIT FITNESS FUNCTION AND OSCILLATION DETECTION ##
 function get_fitness!(solu::Vector{Float64})
     #* Get the rfft of the solution and normalize it
-    fftData = @view solu[1:cld(length(solu),4)] 
+    fftData = @view solu[1:(length(solu) ÷ 4) + 1] 
     fftData = getFrequencies!(fftData, solu) |> normalize_time_series!
 
     #* get the indexes of the peaks in the fft
-    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData; height = 0.0, distance = 1) 
+    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData; distance = 1) 
 
     #* get the summed standard deviation of the peaks in frequency domain
     standard_deviation = getSTD(fft_peakindexes, fftData) 
@@ -171,6 +154,24 @@ function get_fitness!(solu::Vector{Float64})
 
     #* add the log of the period to the standard deviation and summed difference to calculate fitness and privelage longer periods
     return standard_deviation + sum_diff #+ log10(period)
+end
+
+#< OSCILLATION DETECTION HEURISTICS ##
+"""
+    is_steadystate(solu::Vector{Float64}, solt::Vector{Float64})
+
+Checks if the last tenth of the solution array is steady state
+"""
+function is_steadystate(solu::Vector{Float64}, solt::Vector{Float64})
+    tstart = cld(length(solt),10) 
+
+    #* Check if last tenth of the solution array is steady state
+    testwindow = solu[end-tstart:end]
+    if std(testwindow; mean=mean(testwindow)) < 0.01  
+        return true
+    else
+        return false
+    end 
 end
 
 function get_std_last10th(solu::Vector{Float64}, solt::Vector{Float64})
@@ -258,24 +259,24 @@ end
 
 
 
-"""
-## Calculate tspan based on the slowest reaction rate.\n
-- Simply the reciprocal of the minimum first order rate constants, or the reciprocal of the minimum second order rate constants multiplied by the minimum concentration of the reactants
-"""
-function calculate_tspan(params, initial_conditions; max_t = 1e4)
-    #* Get the minimum rate constant
-    min_k, min_k_idx = findmin(params)
+# """
+# ## Calculate tspan based on the slowest reaction rate.\n
+# - Simply the reciprocal of the minimum first order rate constants, or the reciprocal of the minimum second order rate constants multiplied by the minimum concentration of the reactants
+# """
+# function calculate_tspan(params, initial_conditions; max_t = 1e4)
+#     #* Get the minimum rate constant
+#     min_k, min_k_idx = findmin(params)
 
-    if min_k_idx in (1,4,6,8,10) #* If the minimum rate constant is a second order rate constant, multiply by the minimum concentration of the reactants
-        #* Get the minimum concentration of the reactants
-        min_conc = minimum(initial_conditions)
+#     if min_k_idx in (1,4,6,8,10) #* If the minimum rate constant is a second order rate constant, multiply by the minimum concentration of the reactants
+#         #* Get the minimum concentration of the reactants
+#         min_conc = minimum(initial_conditions)
 
-        #* Calculate the tspan
-        return min(max(10.0, (min_k * min_conc)^-1), max_t)
-    else #* If the minimum rate constant is a first order rate constant, simply take the reciprocal
-        return min(max(10.0, min_k^-1), max_t)
-    end
-end
+#         #* Calculate the tspan
+#         return min(max(10.0, (min_k * min_conc)^-1), max_t)
+#     else #* If the minimum rate constant is a first order rate constant, simply take the reciprocal
+#         return min(max(10.0, min_k^-1), max_t)
+#     end
+# end
 #> END OF FITNESS FUNCTION CALLERS AND WRAPPERS ##
 
 

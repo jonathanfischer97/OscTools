@@ -178,7 +178,7 @@ end
         plot_everything(df::DataFrame, prob::ODEProblem; jump=10, path)
 Plot the solution and FFT of every row in the DataFrame
 """
-function plot_everything(df::DataFrame, prob::ODEProblem; jump=10, pathdir = "testplots")
+function plot_everything(df::DataFrame, prob::ODEProblem=make_ODE_problem(); jump=10, pathdir = "testplots")
         progbar = Progress(cld(nrow(df),jump); desc = "Plotting:")
         mkpath(pathdir)
         # CSV.write(path*"/Set$(setnum)-$(label).csv", df)

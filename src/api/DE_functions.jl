@@ -13,6 +13,32 @@ Struct encapsulating a Differential Evolution (DE) optimization problem. It hold
     ode_problem::OP = make_ODE_problem()
 end
 
+"""Trace override function"""
+function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::DE, options) 
+    # oscillatory_population_idxs = findall(fit -> fit > 0.0, state.fitvals) #find the indices of the oscillatory individuals
+    oscillatory_population_idxs = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
+
+    record["population"] = deepcopy(population[oscillatory_population_idxs])
+    # valarray = copy(view(state.valarray,:,oscillatory_population_idxs))
+    # record["fitvals"] = valarray[1,:]
+    # record["periods"] = valarray[2,:]
+    # record["amplitudes"] = valarray[3,:]
+    record["fitvals"] = state.fitvals[oscillatory_population_idxs]
+    record["periods"] = state.periods[oscillatory_population_idxs]
+    record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
+end
+
+# """Testing trace override function. Saves all solutions"""
+# function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::DE, options) 
+#     record["oscillatory_idxs"] = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
+
+#     record["population"] = deepcopy(population)
+
+#     record["fitvals"] = state.fitvals
+#     record["periods"] = state.periods
+#     record["amplitudes"] = state.amplitudes
+# end
+
 # show method overload for DEProblem
 function Base.show(io::IO, ::MIME"text/plain", prob::DifferentialEvolutionProblem) 
     printstyled(io, typeof(prob.constraints), ":\n"; bold = true, underline=true, color = :green)
@@ -99,7 +125,7 @@ function run_DE(de_problem::DP, population::Vector{Vector{Float64}} = generate_p
     fitness_function = make_fitness_function_threaded(de_problem.constraints, de_problem.ode_problem)
 
     #* Run the optimization.
-    result = Evolutionary.optimize(fitness_function, zeros(length(de_problem.constraints)), boxconstraints, mthd, population, opts)
+    result = Evolutionary.optimize(fitness_function, zeros(3), boxconstraints, mthd, population, opts)
 
     return DifferentialEvolutionResults(result, de_problem.constraints)
 end
@@ -110,12 +136,12 @@ end
 #< DE Overloads
 mutable struct CustomDEState{T,IT} <: Evolutionary.AbstractOptimizerState
     N::Int
-    fitness::Vector{T}
+    fitvals::Vector{T}
     periods::Vector{T} #* periods of the individuals
     amplitudes::Vector{T} #* amplitudes of the individuals
     fittest::IT
 end
-Evolutionary.value(s::CustomDEState) = minimum(s.fitness)
+Evolutionary.value(s::CustomDEState) = minimum(s.fitvals)
 Evolutionary.minimizer(s::CustomDEState) = s.fittest
 
 
@@ -125,63 +151,67 @@ function Evolutionary.initial_state(method::DE, options, objfun, population::Vec
     T = Float64
     individual = first(population)
     N = length(individual)
-    fitness = fill(maxintfloat(T), method.populationSize)
+    fitvals = fill(maxintfloat(T), method.populationSize)
     periods = fill(maxintfloat(T), method.populationSize)
     amplitudes = fill(maxintfloat(T), method.populationSize)
 
     # setup initial state
-    return CustomDEState(N, fitness, periods, amplitudes, copy(individual))
+    return CustomDEState(N, fitvals, periods, amplitudes, copy(individual))
 end
 
-# function Evolutionary.update_state!(objfun, constraints, state, population::Vector{Vector{Float64}}, method::DE, options, itr)
+function Evolutionary.update_state!(objfun, constraints, state, population::Vector{Vector{Float64}}, method::DE, options, itr)
 
-#     # setup
-#     Np = method.populationSize
-#     n = method.n
-#     F = method.F
-#     rng = options.rng
+    # setup
+    Np = method.populationSize
+    n = method.n
+    F = method.F
+    rng = options.rng
 
-#     offspring = Array{Float64}(undef, Np)
+    offspring = similar(population)
 
-#     # select base vectors
-#     bases = method.selection(state.fitness, Np)
+    # select base vectors
+    bases = method.selection(state.fitvals, Np)
 
-#     # select target vectors
-#     for (i,b) in enumerate(bases)
-#         # mutation
-#         base = population[b]
-#         offspring[i] = copy(base)
-#         # println("$i => base:", offspring[i])
+    # select target vectors
+    for (i,b) in enumerate(bases)
+        # mutation
+        base = population[b]
+        offspring[i] = copy(base)
+        # println("$i => base:", offspring[i])
 
-#         targets = randexcl(rng, 1:Np, [i], 2*n)
-#         offspring[i] = differentiation(offspring[i], @view population[targets]; F=F)
-#         # println("$i => mutated:", offspring[i], ", targets:", targets)
+        targets = Evolutionary.randexcl(rng, 1:Np, [i], 2*n)
+        offspring[i] = Evolutionary.differentiation(offspring[i], @view population[targets]; F=F)
+        # println("$i => mutated:", offspring[i], ", targets:", targets)
 
-#         # recombination
-#         offspring[i], _ = method.recombination(offspring[i], base, rng=rng)
-#         # println("$i => recombined:", offspring[i])
-#     end
+        # recombination
+        offspring[i], _ = method.recombination(offspring[i], base, rng=rng)
+        # println("$i => recombined:", offspring[i])
+    end
 
-#     # Create new generation
-#     fitidx = 0
-#     minfit = Inf
-#     for i in 1:Np
-#         o = apply!(constraints, offspring[i])
-#         v = value(objfun, o) + penalty(constraints, o)
-#         if (v <= state.fitness[i])
-#             population[i] = o
-#             state.fitness[i] = v
-#             if v < minfit
-#                 minfit = v
-#                 fitidx = i
-#             end
-#         end
-#     end
+    # Create new generation
+    fitidx = 0
+    minfit = Inf
+    for i in 1:Np
+        o = Evolutionary.apply!(constraints, offspring[i])
+        # @info "Objective function: $objfun"
+        # @info "Offspring: $o"
+        v, p, a = Evolutionary.value(objfun, o) #+ Evolutionary.penalty(constraints, o)
+        if (v <= state.fitvals[i])
+            population[i] = o
+            state.fitvals[i] = v
+            state.periods[i] = p
+            state.amplitudes[i] = a
+            if v < minfit
+                minfit = v
+                fitidx = i
+            end
+        end
+    end
 
-#     # set best individual
-#     if fitidx > 0
-#         state.fittest = population[fitidx]
-#     end
+    # set best individual
+    if fitidx > 0
+        state.fittest = population[fitidx]
+    end
 
-#     return false
-# end
+    return false
+end

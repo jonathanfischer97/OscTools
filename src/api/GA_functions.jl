@@ -76,7 +76,7 @@ function make_fitness_function(constraints::CT, ode_problem::OP) where {CT<:Cons
         sol = solve_odeprob(newprob)
 
         if sol.retcode != ReturnCode.Success
-            return [0.0, 0.0, 0.0]
+            return [-Inf, 0.0, 0.0]
         end
 
         Amem_sol = map(sum, sol.u)
@@ -193,7 +193,7 @@ logrange(start, stop, length::Int) = exp10.(collect(range(start=log10(start), st
 "Struct to hold the results of a GA optimization"
 struct GAResults 
     # trace::Vector{Evolutionary.OptimizationTraceRecord}
-    oscillatory_idxs::Vector{Int}
+    # oscillatory_idxs::Vector{Int}
     population::Vector{Vector{Float64}}
     fitvals::Vector{Float64}
     periods::Vector{Float64}
@@ -207,7 +207,7 @@ function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constra
     numpoints = sum(length, (gen.metadata["fitvals"] for gen in result.trace))
 
     indlength = activelength(constraintset)
-    oscillatory_idxs = Int[]
+    # oscillatory_idxs = Int[]
     population = [Vector{Float64}(undef, indlength) for _ in 1:numpoints]
     fitvals = Vector{Float64}(undef, numpoints)
     periods = Vector{Float64}(undef, numpoints)
@@ -220,7 +220,7 @@ function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constra
 
         push!(gen_indices, (startidx, endidx))
 
-        append!(oscillatory_idxs, gen.metadata["oscillatory_idxs"])
+        # append!(oscillatory_idxs, gen.metadata["oscillatory_idxs"])
 
         population[startidx:endidx] .= gen.metadata["population"]
   
@@ -234,7 +234,7 @@ function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constra
     end
 
     fixed_names = get_fixed_names(constraintset)
-    return GAResults(oscillatory_idxs, population, fitvals, periods, amplitudes, gen_indices, fixed_names)
+    return GAResults(population, fitvals, periods, amplitudes, gen_indices, fixed_names)
 end
 #> END ##
 
@@ -283,7 +283,7 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
 
     #* Make fitness function
     # fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
-    fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
+    fitness_function = make_fitness_function(ga_problem.constraints, ga_problem.ode_problem)
 
     #* Run the optimization.
     result = Evolutionary.optimize(fitness_function, zeros(3), boxconstraints, mthd, population, opts)

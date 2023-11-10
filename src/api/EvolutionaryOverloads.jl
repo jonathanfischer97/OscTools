@@ -19,31 +19,31 @@ Evolutionary.value(s::CustomGAState) = s.fittestValue #return the fitness of the
 Evolutionary.minimizer(s::CustomGAState) = s.fittestInd #return the fittest individual
 
 
-# """Trace override function"""
-# function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::GA, options) 
-#     # oscillatory_population_idxs = findall(fit -> fit > 0.0, state.fitvals) #find the indices of the oscillatory individuals
-#     oscillatory_population_idxs = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
-
-#     record["population"] = deepcopy(population[oscillatory_population_idxs])
-#     # valarray = copy(view(state.valarray,:,oscillatory_population_idxs))
-#     # record["fitvals"] = valarray[1,:]
-#     # record["periods"] = valarray[2,:]
-#     # record["amplitudes"] = valarray[3,:]
-#     record["fitvals"] = state.fitvals[oscillatory_population_idxs]
-#     record["periods"] = state.periods[oscillatory_population_idxs]
-#     record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
-# end
-
-"""Testing trace override function. Saves all solutions"""
+"""Trace override function"""
 function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::GA, options) 
-    record["oscillatory_idxs"] = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
+    # oscillatory_population_idxs = findall(fit -> fit > 0.0, state.fitvals) #find the indices of the oscillatory individuals
+    oscillatory_population_idxs = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
 
-    record["population"] = deepcopy(population)
-
-    record["fitvals"] = state.fitvals
-    record["periods"] = state.periods
-    record["amplitudes"] = state.amplitudes
+    record["population"] = deepcopy(population[oscillatory_population_idxs])
+    # valarray = copy(view(state.valarray,:,oscillatory_population_idxs))
+    # record["fitvals"] = valarray[1,:]
+    # record["periods"] = valarray[2,:]
+    # record["amplitudes"] = valarray[3,:]
+    record["fitvals"] = state.fitvals[oscillatory_population_idxs]
+    record["periods"] = state.periods[oscillatory_population_idxs]
+    record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
 end
+
+# """Testing trace override function. Saves all solutions"""
+# function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::GA, options) 
+#     record["oscillatory_idxs"] = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
+
+#     record["population"] = deepcopy(population)
+
+#     record["fitvals"] = state.fitvals
+#     record["periods"] = state.periods
+#     record["amplitudes"] = state.amplitudes
+# end
 
 """Show override function to prevent printing large arrays"""
 function Evolutionary.show(io::IO, t::Evolutionary.OptimizationTraceRecord{Float64, O}) where O <: Evolutionary.AbstractOptimizer
@@ -88,6 +88,8 @@ function Evolutionary.initial_state(method::GA, options, objfun, population::Vec
 
 
     maxfit, fitidx = findmax(fitvals)
+    @info "Max fitness: $(maxfit)"
+    @info "Min fitness: $(findmin(fitvals)[1])"
 
     #* setup initial state
     return CustomGAState(N, n_newInds, maxfit, copy(population[fitidx]), fitvals, periods, amplitudes)
@@ -121,20 +123,24 @@ function Evolutionary.update_state!(objfun, constraints, state::CustomGAState, p
     Evolutionary.mutate!(view(offspring,1:offspringSize), method, constraints, rng=rng) #! only mutate descendants of the selected
 
     #* Generate new individuals
-    new_inds = @view offspring[offspringSize+1:end] #! writes to offspring directly
-    generate_new_individuals!(new_inds, constraints)
+    if state.n_newInds > 0
+        new_inds = @view offspring[offspringSize+1:end] #! writes to offspring directly
+        generate_new_individuals!(new_inds, constraints)
+    end
 
 
     #* calculate fitness, period, and amplitude of the population
     Evolutionary.evaluate!(objfun, offspring, state.fitvals, state.periods, state.amplitudes)
 
-    @info "Number of fit NEW offspring: $(count(fit -> fit > 0.0, state.fitvals[offspringSize+1:end]))"
+    # @info "Number of fit NEW offspring: $(count(fit -> fit > 0.0, state.fitvals[offspringSize+1:end]))"
 
 
     #* select the best individual
     _, fitidx = findmax(state.fitvals)
     state.fittestInd = offspring[fitidx]
     state.fittestValue = state.fitvals[fitidx]
+    @info "Max fitness: $(state.fittestValue)"
+    @info "Min fitness: $(findmin(state.fitvals)[1])"
     
     #* replace population
     parents .= offspring
@@ -260,8 +266,8 @@ function Evolutionary.value!(obj::EvolutionaryObjective{TC, Vector{Float64}, Vec
     n = length(xs)
     # @info "Evaluating $(n) individuals in parallel"
     # @info size(F)
-    @info "Evaluating F as single matrix"
-    @info "F type: $(typeof(F))"
+    # @info "Evaluating F as single matrix"
+    # @info "F type: $(typeof(F))"
     Threads.@threads for i in 1:n
         fv = view(F, :, i)
         value(obj, fv, xs[i])

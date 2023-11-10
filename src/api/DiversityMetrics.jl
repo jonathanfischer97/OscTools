@@ -1,24 +1,3 @@
-# """
-#     getmax_pairwise_diversity(population::AbstractMatrix{Float64})
-
-# Computes the maximum pairwise distance as a diversity metric for a population of individuals.
-# """
-# function getmax_pairwise_diversity(population::AbstractMatrix{Float64}, method=Euclidean())
-
-#     n = size(population, 2) # number of individuals
-    
-#     distance_matrix = Matrix{Float64}(undef, n, n)
-    
-#     return getmax_pairwise_diversity!(distance_matrix, population, method)
-# end
-
-# function getmax_pairwise_diversity!(distance_matrix, population::AbstractMatrix{Float64}, method=Euclidean())
-
-#     pairwise!(method, distance_matrix, population, dims=2)
-    
-#     return maximum(triu(distance_matrix))
-# end
-
 """
     getmax_pairwise_diversity(population::AbstractMatrix{Float64}, method=Euclidean())
 
@@ -93,35 +72,6 @@ function get_nearest_neighbor2(population::Matrix{Float64}, method=Euclidean())
 end
 
 
-
-
-
-# function get_spread(S::AbstractMatrix{Float64}) 
-#     n = size(S,2) # number of individuals
-#     n == 1 && return NaN # if there is only one individual, return NaN
-
-#     # Compute pairwise Euclidean distances
-#     dists = Matrix{Float64}(undef, n, n)
-#     return get_spread!(dists, S)
-# end
-
-# function get_spread!(dists::Matrix{Float64}, S::AbstractMatrix{Float64}) 
-#     pairwise!(Euclidean(), dists, S, dims=2)
-
-#     # Replace diagonal of distance matrix with Inf to exclude self-distances
-#     dists[diagind(dists)] .= Inf
-
-#     n = size(S,2) # number of individuals
-
-#     # Compute minimum distance for each individual
-#     Δₖ = [minimum(col) for col in eachcol(dists)]
-
-#     # Compute mean minimum distance
-#     Δ = mean(Δₖ)
-
-#     # Compute spread metric by summing the absolute difference between each minimum distance and the mean, scaled by the mean
-#     sum(abs.(Δₖ.-Δ))/n*Δ
-# end
 
 function get_spread(S::Matrix{Float64}) 
     n = size(S,2) # number of individuals
