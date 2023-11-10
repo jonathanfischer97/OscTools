@@ -90,7 +90,8 @@ function plotfft(sol::ODESolution, Amem = calculate_Amem(sol))
         #* Normalize the FFT to have mean 0 and amplitude 1
         normalize_time_series!(solfft)
 
-        fft_peakindexes, fft_peakvals = findmaxpeaks(solfft; height = 1e-2, distance = 2) #* get the indexes of the peaks in the fft
+        fft_peakindexes, fft_peakvals = findmaxpeaks(solfft; distance = 1) #* get the indexes of the peaks in the fft
+        popfirst!(fft_peakindexes) #* Remove the first peak (which is always 0.0)
         
         #* If there are no peaks, return a plot with no peaks
         if isempty(fft_peakindexes)
@@ -162,7 +163,7 @@ function plotboth(sol::ODESolution)
         Amem = calculate_Amem(sol)
 
         cost, per, amp = FitnessFunction(Amem, sol.t)
-        amp_percentage = amp/sol[4,1]
+        amp_percentage = amp/sol[4,1] #TODO fix this, producing huge values for some reason
 
         solplot = plotsol(sol)
         fftplot = plotfft(sol)
