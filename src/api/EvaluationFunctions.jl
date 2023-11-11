@@ -4,22 +4,22 @@ function getDif(peakvals::Vector{Float64})
     (peakvals[begin] - peakvals[end])/length(peakvals)
 end
 
-function getWeightedAvgPeakDiff(peakvals::Vector{Float64}, peakfreqs::Vector{Float64})
-    # Assuming peakfreqs are sorted in ascending order
+function getWeightedAvgPeakDiff(peakvals::Vector{Float64}, peakindices::Vector{Int})
     n = length(peakvals)
-    if n < 2
-        return 0.0
-    end
 
-    # Weights inversely proportional to frequency (higher weight for lower frequency)
-    weights = 1.0 ./ peakfreqs
-    total_weight = sum(weights[1:end-1])
+    # Weights proportional to log of peak indices (frequency)
+    w = log10.(peakindices)
+    # total_weight = sum(w[1:end-1])
+    # @info "Total weight: $total_weight"
+    
 
     # Weighted average of absolute differences
-    weighted_diff = sum(weights[i] * abs(peakvals[i+1] - peakvals[i]) for i in 1:n-1) / total_weight
+    # weighted_avg_diff = sum(w[i] * abs(peakvals[i+1] - peakvals[i]) for i in 1:n-1; init = 0.0) / total_weight
+    weighted_avg_diff = wsum(abs.(diff(peakvals)), w[1:end-1])
 
-    return weighted_diff
+    return weighted_avg_diff
 end
+
 
 
 """Get summed average standard deviation of peaks values from the FFT of the solution"""
@@ -135,7 +135,7 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
     fftData = getFrequencies!(fftData, solu) |> normalize_time_series!
 
     #* get the indexes of the peaks in the fft
-    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData; height = 0.0, distance = 1) 
+    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData) 
 
     #* if there is no signal in the frequency domain, return 0.0s
     if length(fft_peakindexes) < 2 
@@ -166,8 +166,6 @@ function get_fitness!(solu::Vector{Float64})
 
     #* get the indexes of the peaks in the fft
     fft_peakindexes, fft_peakvals = findmaxpeaks(fftData) 
-    # @info "First peak value: $(fft_peakvals[1])"
-    # @info "Last peak value: $(fft_peakvals[end])"
 
     if isempty(fft_peakvals)
         return 0.0
@@ -175,11 +173,10 @@ function get_fitness!(solu::Vector{Float64})
 
     #* get the summed standard deviation of the peaks in frequency domain
     standard_deviation = getSTD(fft_peakindexes, fftData) 
-    # @info "Standard Deviation: $standard_deviation"
 
     #* get the summed difference between the first and last peaks in frequency domain
-    sum_diff = getDif(fft_peakvals) 
-    # @info "Summed Difference: $sum_diff"
+    # sum_diff = getDif(fft_peakvals) 
+    sum_diff = getWeightedAvgPeakDiff(fft_peakvals, fft_peakindexes)
 
     #* add the log of the period to the standard deviation and summed difference to calculate fitness and privelage longer periods
     return standard_deviation + sum_diff

@@ -27,23 +27,25 @@ Plot the solution from a row of the DataFrame.
 
 See also [`plotfft`](@ref) for plotting the FFT of a solution.
 """
-function plotsol(sol::ODESolution, Amem = calculate_Amem(sol); title = "")
+function plotsol(sol::ODESolution, Amem = calculate_Amem(sol); extrema_idxs, title = "")
 
         #* Sum up all A in solution 
         Asol = sol[4,:] .+ sol[13,:] .+ sol[14, :]
 
         #* Find peaks 
-        max_idxs, max_vals, min_idxs, min_vals = findextrema(Amem; min_height = 0.1)
+        max_idxs, min_idxs = extrema_idxs
+        max_vals = Amem[max_idxs]
+        min_vals = Amem[min_idxs]
         
         p = plot(sol, idxs = [1,5,2,3], title = title, xlabel = "Time (s)", ylabel = "Concentration (µM)",
-                color = [:blue :orange :purple :gold], label = ["PIP" "PIP2" "PIP5K" "Synaptojanin"], alpha = 0.7, lw = 2)
+                color = [:blue :darkorange :purple :goldenrod], label = ["PIP" "PIP2" "PIP5K" "Synaptojanin"], alpha = 0.5, lw = 2, legend=:topright)
 
-        plot!(p, sol.t, Asol, label="AP2 in solution", alpha=1.0, color=:gray, lw = 3)
-        plot!(p, sol.t, Amem, label = "AP2 on membrane", alpha=1.0, color=:black, lw =3)
+        plot!(p, sol.t, Asol, label="AP2 in solution", alpha=1.0, color=:tomato, lw = 3)
+        plot!(p, sol.t, Amem, label = "AP2 on membrane", alpha=1.0, color=:darkred, lw =3)
 
         #* Plot putative peaks 
-        scatter!(p, max_idxs, max_vals, label = "", color = :red, markersize = 5, ls = :dash)
-        scatter!(p, min_idxs, min_vals, label = "", color = :red, markersize = 5, ls = :dash)
+        # scatter!(p, max_idxs, max_vals, label = "", color = :black, markersize = 5)
+        # scatter!(p, min_idxs, min_vals, label = "", color = :black, markersize = 5)
 
 
         return p #|> apply_default_settings
@@ -168,15 +170,15 @@ function plotboth(sol::ODESolution; initA)
         max_idxs, max_vals, min_idxs, min_vals = findextrema(Amem; min_height=0.1)
         # cost, per, amp = FitnessFunction(Amem, sol.t)
         
-        @info "Maxima: $(max_idxs) $(max_vals)"
-        @info "Minima: $(min_idxs) $(min_vals)"
+        # @info "Maxima: $(max_idxs) $(max_vals)"
+        # @info "Minima: $(min_idxs) $(min_vals)"
         
         period, amplitude = getPerAmp(sol.t, max_idxs, max_vals, min_idxs, min_vals)
         fitness = get_fitness!(Amem)
         
         amp_percentage = amplitude * 100.
 
-        solplot = plotsol(sol)
+        solplot = plotsol(sol; extrema_idxs = (max_idxs, min_idxs))
         fftplot = plotfft(sol)
 
         bothplot = plot(solplot, fftplot, plot_title ="Fit: $(round(fitness;digits=4)) + $(log10(period))\nPeriod: $(round(period;digits=4)) s\nAmplitude: $(round(amp_percentage;digits=4)) %" , 

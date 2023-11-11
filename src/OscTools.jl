@@ -14,6 +14,7 @@ module OscTools
     using NearestNeighbors
     using CategoricalArrays
     using Printf
+    using StatsBase
 
 
 

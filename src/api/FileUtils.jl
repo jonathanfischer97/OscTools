@@ -97,7 +97,7 @@ function make_ga_dataframe(results::GAResults, constraints::ConstraintSet)
     if !isempty(df.A)
         df.relamp .= df.amp ./ df.A
     end
-    df.gen = categorical(df.gen)
+    df.gen = categorical(df.gen; ordered=true)
     return df
 end
 

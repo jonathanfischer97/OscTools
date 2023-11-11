@@ -1,10 +1,3 @@
-# """Returns RFFT plan for the given ODEProblem, using the default problem solution"""
-# function make_rfft_plan(ode_problem::OP) where OP <: ODEProblem
-#     sol = solve_odeprob(ode_problem, [6, 9, 10, 11, 12, 15, 16])
-#     Amem_sol = map(sum, sol.u)
-#     return plan_rfft(Amem_sol)
-# end
-
 #< FITNESS FUNCTION CONSTRUCTOR ##
 """
     make_fitness_function_threaded(constraints::ConstraintSet, ode_problem::OP, eval_function::FT)
@@ -93,7 +86,7 @@ function make_fitness_function(constraints::CT, ode_problem::OP) where {CT<:Cons
 
         if is_oscillatory(Amem_sol, sol.t, max_idxs, min_idxs)
             period, amplitude = getPerAmp(sol.t, max_idxs, max_vals, min_idxs, min_vals)
-            fitness += log10(period)
+            # fitness += log10(period)
         end
 
         fitness += get_fitness!(Amem_sol)
@@ -252,7 +245,7 @@ Runs the genetic algorithm, returning the `GAResult` type.
 function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_population(ga_problem.constraints, 10000); 
                 abstol=1e-4, reltol=1e-2, successive_f_tol = 4, iterations=5, parallelization = :thread, show_trace=true,
                 mutation_scalar = 0.5, mutation_range = fill(mutation_scalar, activelength(ga_problem.constraints)), mutation_scheme = BGA(mutation_range, 2), mutationRate = 1.0,
-                selection_method = tournament, num_tournament_groups=10, crossover = TPX, crossoverRate = 1.0,
+                selection_method = tournament, num_tournament_groups=20, crossover = TPX, crossoverRate = 0.75,
                 n_newInds = 0.0) where GP <: GAProblem
 
 
@@ -289,146 +282,12 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
     # fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
     fitness_function = make_fitness_function(ga_problem.constraints, ga_problem.ode_problem)
 
-    #* Run the optimization.
+    #* Run the optimization
     result = Evolutionary.optimize(fitness_function, zeros(3), boxconstraints, mthd, population, opts)
 
     return GAResults(result, ga_problem.constraints)
 end
 #> END
 
-#< OLD CODE ###########################################
-# """Fitness function constructor called during GAProblem construction that captures the fixed indices and ODE problem"""
-# function make_fitness_function(constraints::ConstraintSet, ode_problem::OT, eval_function::FT) where {OT<:ODEProblem, FT<:Function}
-#     fixed_idxs = get_fixed_indices(constraints)
-#     fixed_values = [constraints[i].fixed_value for i in fixed_idxs]
-#     n_fixed = length(fixed_idxs)
-#     n_total = n_fixed + activelength(constraints) 
-
-#     non_fixed_indices = setdiff(1:n_total, fixed_idxs)
-
-#     # merged_input = Vector{Float64}(undef, n_total)
-#     merged_input = zeros(Float64, n_total+12)
-#     # @info "Merged input length: $(length(merged_input))"
-
-#     merged_input[fixed_idxs] .= fixed_values  # Fill in fixed values
-
-#     function fitness_function(input::Vector{Float64})
-#         merged_input[non_fixed_indices] .= input  # Fill in variable values
-#         # @info "Merged input: $merged_input"
-#         return eval_function(merged_input, ode_problem)
-#     end
-
-#     return fitness_function
-# end
-
-# make_fitness_function(constraints::ParameterConstraints, ode_problem::ODEProblem) = make_fitness_function(constraints, ode_problem, eval_param_fitness)
-# make_fitness_function(constraints::InitialConditionConstraints, ode_problem::ODEProblem) = make_fitness_function(constraints, ode_problem, eval_ic_fitness)
-# make_fitness_function(constraints::AllConstraints, ode_problem::ODEProblem) = make_fitness_function(constraints, ode_problem, eval_all_fitness)
-
-# """Returns in-place function"""
-# function make_fitness_function_inplace(constraints::ConstraintSet, ode_problem::OT, eval_function::FT) where {OT<:ODEProblem, FT<:Function}
-#     fixed_idxs = get_fixed_indices(constraints)
-#     fixed_values = [constraints[i].fixed_value for i in fixed_idxs]
-#     n_fixed = length(fixed_idxs)
-#     n_total = n_fixed + activelength(constraints)
-
-#     non_fixed_indices = setdiff(1:n_total, fixed_idxs)
-
-
-#     # Create a ThreadLocal array
-#     merged_inputs = [zeros(Float64, n_total+12) for _ in 1:Threads.nthreads()]
-#     Fvs = [Vector{Float64}(undef,3) for _ in 1:Threads.nthreads()]
-
-#     # Fill in the fixed values
-#     for input in merged_inputs
-#         input[fixed_idxs] .= fixed_values  # Fill in fixed values
-#     end
-
-#     function fitness_function!(input::Vector{Float64})
-#         # Get the merged_input array for the current thread
-#         merged_input = merged_inputs[Threads.threadid()]
-#         merged_input[non_fixed_indices] .= input  # Fill in variable values
-#         Fvs[Threads.threadid()] .= eval_function(merged_input, ode_problem)
-#     end
-
-#     return fitness_function!
-# end
-
-# make_fitness_function_inplace(constraints::ParameterConstraints, ode_problem::ODEProblem) = make_fitness_function_inplace(constraints, ode_problem, eval_param_fitness)
-# make_fitness_function_inplace(constraints::InitialConditionConstraints, ode_problem::ODEProblem) = make_fitness_function_inplace(constraints, ode_problem, eval_ic_fitness)
-# make_fitness_function_inplace(constraints::AllConstraints, ode_problem::ODEProblem) = make_fitness_function_inplace(constraints, ode_problem, eval_all_fitness)
-
-
-# function generate_population_stratified!(population::Vector{Vector{Float64}}, constraints::ConstraintSet, n_strata::Int)
-
-#     rand_vals = Vector{Float64}(undef, length(population))
-    
-#     # Populate the array
-#     i = 1
-#     for conrange in constraints
-#         if !conrange.isfixed
-#             min_val, max_val = log10(conrange.min), log10(conrange.max)
-#             strata_bounds = range(min_val, stop=max_val, length=n_strata+1)
-            
-#             for stratum in 1:n_strata
-#                 lower_bound, upper_bound = strata_bounds[stratum], strata_bounds[stratum+1]
-#                 n_samples_stratum = length(population) ÷ n_strata  # Integer division to get an equal number of samples from each stratum
-#                 n_samples_stratum += (stratum <= length(population) % n_strata)  # Distribute any remaining samples among the first few strata
-                
-#                 rand_vals[1:n_samples_stratum] .= exp10.(rand(Uniform(lower_bound, upper_bound), n_samples_stratum))
-                
-#                 for j in 1:n_samples_stratum
-#                     population[(stratum-1)*n_samples_stratum+j][i] = rand_vals[j]
-#                 end
-#             end
-#             i += 1
-#         end
-#     end
-#     return population
-# end
-
-
-# function generate_population_stratified!(population::Vector{Vector{Float64}}, constraints::ConstraintSet, n_strata::Int)
-#     # Pre-allocate rand_vals based on n_strata and population size
-#     rand_vals = Vector{Float64}(undef, length(population) ÷ n_strata + 1)
-    
-#     i = 1
-#     for conrange in constraints
-#         if !conrange.isfixed
-#             min_val, max_val = log10(conrange.min), log10(conrange.max)
-#             strata_bounds = range(min_val, stop=max_val, length=n_strata+1)
-            
-#             for stratum in 1:n_strata
-#                 lower_bound, upper_bound = strata_bounds[stratum], strata_bounds[stratum+1]
-#                 n_samples_stratum = length(population) ÷ n_strata
-#                 n_samples_stratum += (stratum <= length(population) % n_strata)
-                
-#                 rand_vals[1:n_samples_stratum] .= exp10.(rand(Uniform(lower_bound, upper_bound), n_samples_stratum))
-                
-#                 for j in 1:n_samples_stratum
-#                     population[(stratum-1)*n_samples_stratum+j][i] = rand_vals[j]
-#                 end
-#             end
-#             i += 1
-#         end
-#     end
-#     return population
-# end
-
-
-# """### Callback function that terminates the GA if the number of oscillations exceeds the threshold, and updates the progress bar"""
-# function ga_callback(trace::Evolutionary.OptimizationTrace, progressbar::Progress, threshold::Int)
-#     #? Callback function for the GA, updating the progress bar
-#     num_oscillation = trace[end].metadata["num_oscillatory"]
-#     if num_oscillation >= threshold 
-#         finish!(progressbar)
-#         return true
-#     else
-#         next!(progressbar, step = num_oscillation)
-#         return false
-#     end
-# end
-
-#> END OF OLD CODE ##
 
 
