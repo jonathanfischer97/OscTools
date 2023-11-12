@@ -206,8 +206,9 @@ function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constra
     lineages = Vector{Vector{Int}}(undef, numpoints)
 
     gen_indices = Tuple{Int, Int}[]
+
     startidx = 1
-    for gen in result.trace
+    for (i, gen) in enumerate(result.trace)
         endidx = startidx + length(gen.metadata["population"]) - 1
 
         push!(gen_indices, (startidx, endidx))

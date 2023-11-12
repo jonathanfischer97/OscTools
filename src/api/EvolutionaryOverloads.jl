@@ -23,8 +23,9 @@ Evolutionary.minimizer(s::CustomGAState) = s.fittestInd #return the fittest indi
 
 
 """Trace override function"""
-function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::GA, options) 
-    # oscillatory_population_idxs = findall(fit -> fit > 0.0, state.fitvals) #find the indices of the oscillatory individuals
+function Evolutionary.trace!(record::Dict{String,Any}, objfun, state::CustomGAState, population::Vector{Vector{Float64}}, method::GA, options) 
+    @info "Previous saved inds: $(findall(state.previous_saved_inds))"
+
     oscillatory_population_idxs = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
 
     record["oscillatory_idxs"] = oscillatory_population_idxs
@@ -34,21 +35,28 @@ function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population
     record["periods"] = state.periods[oscillatory_population_idxs]
     record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
 
-    #* Record lineage
-    record["lineages"] = deepcopy(state.lineages[oscillatory_population_idxs])
-
-    #* Adjust lineage for oscillatory individuals using previous generation's saved indices
+    # Adjust lineage for oscillatory individuals using previous generation's saved indices
     adjusted_lineage = Vector{Vector{Int}}(undef, length(oscillatory_population_idxs))
     for (i, idx) in enumerate(oscillatory_population_idxs)
-        parents = state.lineages[idx]
-        adjusted_lineage[i] = [state.previous_saved_inds[parent] ? parent : -1 for parent in parents]
+        original_lineage = state.lineages[idx]
+        adjusted_lineage[i] = [adjust_parent_index(parent, state.previous_saved_inds) for parent in original_lineage]
     end
-    record["lineage"] = adjusted_lineage
+    record["lineages"] = adjusted_lineage
+    @info "Lineage: $(state.lineages[oscillatory_population_idxs])"
+    @info "Adjusted lineage: $(adjusted_lineage)"
 
-    #* Update previous saved indices
+    # Update previous saved indices
     state.previous_saved_inds .= falses(length(state.previous_saved_inds))
     state.previous_saved_inds[oscillatory_population_idxs] .= true
 end
+
+function adjust_parent_index(parent_idx::Int, saved_inds::BitVector)
+    # Sum over a view of the BitVector up to the parent index
+    saved_count = sum(view(saved_inds, 1:parent_idx))
+    return saved_count == 0 ? -1 : saved_count  # Return -1 if parent was not saved
+end
+
+
 
 # """Trace function for saving all individuals"""
 # """Testing trace override function. Saves all solutions"""
@@ -105,8 +113,8 @@ function Evolutionary.initial_state(method::GA, options, objfun, population::Vec
 
 
     maxfit, fitidx = findmax(fitvals)
-    @info "Max fitness: $(maxfit)"
-    @info "Min fitness: $(findmin(fitvals)[1])"
+    # @info "Max fitness: $(maxfit)"
+    # @info "Min fitness: $(findmin(fitvals)[1])"
 
     #* Initialize lineage array
     lineages = fill([1,1], method.populationSize)
@@ -138,9 +146,15 @@ function Evolutionary.update_state!(objfun, constraints, state::CustomGAState, p
 
     #* select offspring
     selected = method.selection(state.fitvals, offspringSize, rng=rng)
+    # @info "Selected parent 8381: $(parents[8381])"
+    # @info "Selected parent 6361: $(parents[6361])"
 
     #* perform mating
     Evolutionary.recombine!(offspring, parents, selected, method, state, rng=rng)
+    # @info "Child 8381: $(offspring[8381])"
+    # @info "Child 8381 lineage: $(state.lineages[8381])"
+    # @info "Child 6361: $(offspring[6361])"
+    # @info "Child 6361 lineage: $(state.lineages[6361])"
 
     #* perform mutation
     Evolutionary.mutate!(view(offspring,1:offspringSize), method, constraints, rng=rng) #! only mutate descendants of the selected
@@ -179,15 +193,11 @@ function Evolutionary.recombine!(offspring, parents, selected, method, state::Cu
         p1, p2 = parents[selected[i]], parents[selected[j]]
         if rand(rng) < method.crossoverRate
             offspring[i], offspring[j] = method.crossover(p1, p2, rng=rng)
-            # Update lineage for offspring
-            state.lineages[i] .= [selected[i], selected[j]]
-            state.lineages[j] .= [selected[i], selected[j]]
         else
             offspring[i], offspring[j] = p1, p2
-            # Inherit lineage directly in case of no crossover
-            state.lineages[i] .= state.lineages[selected[i]]
-            state.lineages[j] .= state.lineages[selected[j]]
         end
+        # Update lineage for offspring
+        state.lineages[i] = state.lineages[j] = [selected[i], selected[j]]
     end
 end
 
