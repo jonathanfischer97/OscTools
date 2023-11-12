@@ -35,7 +35,7 @@ end
 
 """
     identify_fixed_columns(df::AbstractDataFrame)
-Identifies columns in a dataframe that have only one unique value, returns a vector of symbols of the independent variables (excludes gen, fit, per, amp).
+Identifies columns in a dataframe that have only one unique value, returns a vector of symbols of the independent variables (excludes gen, fit, per, relamp).
 """
 function identify_fixed_columns(df::AbstractDataFrame)
     fixed_cols = Symbol[]
@@ -44,7 +44,7 @@ function identify_fixed_columns(df::AbstractDataFrame)
             push!(fixed_cols, col)
         end
     end
-    push!(fixed_cols, :gen, :fit, :per, :amp, :relamp)
+    push!(fixed_cols, :gen, :fit, :per, :relamp)
     return fixed_cols
 end
 
@@ -218,7 +218,7 @@ end
     get_optimal_clusters(df::AbstractDataFrame, max_k::Int, exclude_cols::Vector{Symbol} = [])
 Wrapper function for optimal_kmeans_clusters that converts a DataFrame to a Matrix, and returns the optimal cluster count.
 """
-function get_optimal_clusters(df::AbstractDataFrame, max_k::Int, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :relamp, :DF])
+function get_optimal_clusters(df::AbstractDataFrame, max_k::Int, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :relamp, :DF])
     # if max_k > nrow(df)
     #     max_k = nrow(df)
     # elseif nrow(df) < 2

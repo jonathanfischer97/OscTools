@@ -4,13 +4,17 @@ function getDif(peakvals::Vector{Float64})
     (peakvals[begin] - peakvals[end])/length(peakvals)
 end
 
+"""
+    getWeightedAvgPeakDiff(peakvals::Vector{Float64}, peakindices::Vector{Int})
+
+Get the weighted average of the absolute differences between the peaks in the FFT of the solution. The weights are proportional to the log of the peak indices (frequency).
+"""
 function getWeightedAvgPeakDiff(peakvals::Vector{Float64}, peakindices::Vector{Int})
     n = length(peakvals)
 
     # Weights proportional to log of peak indices (frequency)
     w = log10.(peakindices)
     # total_weight = sum(w[1:end-1])
-    # @info "Total weight: $total_weight"
     
 
     # Weighted average of absolute differences
@@ -70,14 +74,13 @@ function getPerAmp(sol::OS) where OS <: ODESolution
     Amem_sol = sol[6,:] .+ sol[9,:] .+ sol[10,:] .+ sol[11,:] .+ sol[12,:] .+ sol[15,:] .+ sol[16,:]
 
     indx_max, vals_max, indx_min, vals_min = findextrema(Amem_sol; min_height=0.1)
-    # indx_min, vals_min = findextrema(Amem_sol; height = 0.0, distance = 5, find_maxima=false)
     return getPerAmp(sol.t, indx_max, vals_max, indx_min, vals_min)
 end
 
 function getPerAmp(Amem_sol, solt) 
 
     indx_max, vals_max, indx_min, vals_min = findextrema(Amem_sol; min_height=0.1)
-    # indx_min, vals_min = findextrema(Amem_sol; height = 0.0, distance = 5, find_maxima=false)
+
     return getPerAmp(solt, indx_max, vals_max, indx_min, vals_min)
 end
 
@@ -98,8 +101,8 @@ end
 
 #<< COMBINED FITNESS FUNCTION ##
 """Core fitness function logic to be plugged into eval_fitness wrapper, sums AP2 membrane species before calling FitnessFunction"""
-function FitnessFunction(sol::OS) where {OS <: ODESolution}
-    Amem_sol = map(sum, sol.u) #* sum all AP2 species on the membrane to get the amplitude of the solution
+function FitnessFunction(sol::OS, initialAP2::Float64) where {OS <: ODESolution}
+    Amem_sol = map(sum, sol.u) ./ initialAP2 #* sum all AP2 species on the membrane to get the amplitude of the solution
     FitnessFunction(Amem_sol, sol.t)
 end
 
@@ -155,6 +158,7 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
     end
 end
 
+
 #< SPLIT FITNESS FUNCTION AND OSCILLATION DETECTION ##
 function get_fitness!(solu::Vector{Float64})
 
@@ -209,7 +213,11 @@ function get_std_last10th(solu::Vector{Float64}, solt::Vector{Float64})
     return std(testwindow; mean=mean(testwindow))
 end
 
+"""
+    is_oscillatory(solu::Vector{Float64}, solt::Vector{Float64}, max_idxs::Vector{Int}, min_idxs::Vector{Int})
 
+Checks if the solution is oscillatory by checking if there are more than 1 maxima and minima in the solution array and whether the solution is steady state
+"""
 function is_oscillatory(solu::Vector{Float64}, solt::Vector{Float64}, max_idxs::Vector{Int}, min_idxs::Vector{Int})
     if !is_steadystate(solu, solt) && length(max_idxs) > 1 && length(min_idxs) > 1
         return true
@@ -223,22 +231,8 @@ end
 
 
 #< FITNESS FUNCTION CALLERS AND WRAPPERS ## 
-# """Evaluate the fitness of an individual with new parameters"""
-# function eval_param_fitness(params::Vector{Float64},  prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
-#     #* remake with new parameters
-#     new_prob = remake(prob, p=params)
-#     return solve_for_fitness_peramp(new_prob, idx)
-# end
-
-# """Evaluate the fitness of an individual with new initial conditions"""
-# function eval_ic_fitness(initial_conditions::Vector{Float64}, prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
-#     #* remake with new initial conditions
-#     new_prob = remake(prob, u0=initial_conditions)
-#     return solve_for_fitness_peramp(new_prob, idx)
-# end
-
 """Evaluate the fitness of an individual with new initial conditions and new parameters"""
-function eval_all_fitness(inputs::Vector{Float64}, prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
+function eval_fitness(inputs::Vector{Float64}, prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
     newp = @view inputs[1:13]
     newu = @view inputs[14:end]
 
@@ -261,7 +255,7 @@ function remake_prob(inputs::Vector{Float64}, prob::OP) where {OP <: ODEProblem}
     return remake(prob; p = newp, u0= newu)
 end
 
-"""Takes in an ODEProblem and returns solution"""
+"""Takes in an ODEProblem and returns solution excluding first 10% of tspan"""
 function solve_odeprob(prob::OP, idx=[6, 9, 10, 11, 12, 15, 16]) where OP <: ODEProblem
     #* calculate first 10% of the tspan
     tstart = prob.tspan[2] / 10
@@ -277,7 +271,7 @@ function solve_for_fitness_peramp(prob::OP, idx) where {OP <: ODEProblem}
     sol = solve_odeprob(prob, idx)
 
     if sol.retcode == ReturnCode.Success
-        return FitnessFunction(sol)
+        return FitnessFunction(sol, prob.u0[4])
     else
         return [0.0, 0.0, 0.0]
     end
@@ -306,7 +300,6 @@ end
 #> END OF FITNESS FUNCTION CALLERS AND WRAPPERS ##
 
 
-#* change rates associated with which complexes in calculate_tspan 
 
 
 

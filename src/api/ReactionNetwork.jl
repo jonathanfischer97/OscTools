@@ -10,16 +10,17 @@ function make_fullrn(;defparams = [:ka1 => 0.009433439939827041, :kb1 => 2.35501
         @species L(t) K(t) P(t) A(t) Lp(t) LpA(t) LK(t) LpP(t) LpAK(t) LpAP(t) LpAKL(t) LpAPLp(t) AK(t) AP(t) AKL(t) APLp(t)
         # ALIASES: L = PIP, Lp = PIP2, K = Kinase, P = Phosphatase, A = AP2 
         # reactions between the same binding interfaces will have the same rate constant no matter the dimensionality or complex
+        # DF is the dimensionality factor that scales the 2D rate constants, and is proportional to the membrane surface to volume ratio
         (ka1,kb1), L + K <--> LK # L binding to kinase
         kcat1, LK --> Lp + K # L phosphorylation by kinase into Lp
         (ka2,kb2), Lp + A <--> LpA # Lp binding to AP2 adaptor 
         (ka3,kb3), LpA + K <--> LpAK # Membrane-bound adaptor binding to kinase
-        (ka1*DF,kb1), LpAK + L <--> LpAKL # 2D reaction: Membrane-bound kinase binds to L with greater affinity as determined by y (V/A)
+        (ka1*DF,kb1), LpAK + L <--> LpAKL # 2D reaction: Membrane-bound kinase binds to L with greater affinity as determined by DF
         kcat1, LpAKL --> Lp + LpAK # L phosphorylation by kinase into Lp, same as 3D: first order reactions aren't dependent on dimensionality 
         (ka7,kb7), Lp + P <--> LpP # Lp binding to phosphatase 
         kcat7, LpP --> L + P # L dephosphorylation by phosphatase
         (ka4,kb4), LpA + P <--> LpAP # Membrane-bound adaptor binding to phosphatase 
-        (ka7*DF,kb7), Lp + LpAP <--> LpAPLp # 2D reaction: Membrane-bound phosphatase binds to Lp with greater affinity as determined by y (V/A)
+        (ka7*DF,kb7), Lp + LpAP <--> LpAPLp # 2D reaction: Membrane-bound phosphatase binds to Lp with greater affinity as determined by DF
         kcat7, LpAPLp --> L + LpAP # L dephosphorylation by phosphatase, same as 3D: first order reactions aren't dependent on dimensionality
 
         #previously excluded reactions, all possible combinations possible in vitro

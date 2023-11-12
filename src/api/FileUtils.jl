@@ -77,9 +77,17 @@ end
 Makes a DataFrame from a GAResults object.
 """
 function make_ga_dataframe(results::GAResults, constraints::ConstraintSet)
-    df = DataFrame(gen = Vector{Int}(undef, length(results.fitvals)), fit = results.fitvals, per = results.periods, amp = results.amplitudes, relamp = Vector{Float64}(undef, length(results.fitvals)))
+    df = DataFrame(
+        gen = Vector{Int}(undef, length(results.fitvals)), 
+        fit = results.fitvals, 
+        per = results.periods, 
+        relamp = results.amplitudes, 
+        # relamp = Vector{Float64}(undef, length(results.fitvals)),
+        parent1 = Vector{Union{Int, Missing}}(undef, length(results.fitvals)),
+        parent2 = Vector{Union{Int, Missing}}(undef, length(results.fitvals))
+    )
 
-    #* Loop over each generation based on gen_indices
+    # Loop over each generation based on gen_indices
     for (gen, (start_idx, end_idx)) in enumerate(results.gen_indices)
         df.gen[start_idx:end_idx] .= gen
     end
@@ -88,18 +96,27 @@ function make_ga_dataframe(results::GAResults, constraints::ConstraintSet)
     for conrange in constraints
         if !conrange.isfixed
             df[!, conrange.name] .= [x[i] for x in results.population]
-            i+=1
+            i += 1
         else
             df[!, conrange.name] .= conrange.fixed_value
         end
     end
-    #* Calculate the relative amplitude by dividing the amp column by the initial concentration of A
-    if !isempty(df.A)
-        df.relamp .= df.amp ./ df.A
-    end
+
+    # Calculate the relative amplitude
+    # if !isempty(df.A)
+    #     df.relamp .= df.amp ./ df.A
+    # end
+
     df.gen = categorical(df.gen; ordered=true)
+
+    # Populate parent columns
+    df.parent1 .= [lineage[1] for lineage in results.lineages]
+    df.parent2 .= [lineage[2] for lineage in results.lineages]
+
     return df
 end
+
+
 
 """
 Makes a DataFrame from a raw population, nested vectors

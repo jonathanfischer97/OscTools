@@ -1,10 +1,10 @@
 #< FITNESS FUNCTION CONSTRUCTOR ##
 """
-    make_fitness_function_threaded(constraints::ConstraintSet, ode_problem::OP, eval_function::FT)
+    make_fitness_function_threaded(constraints::ConstraintSet, ode_problem::OP)
 
 Multithreaded fitness function, allocated a merged array for each thread
     """
-function make_fitness_function_threaded(constraints::CT, ode_problem::OP, eval_function::FT) where {CT<:ConstraintSet, OP<:ODEProblem, FT<:Function}
+function make_fitness_function_threaded(constraints::CT, ode_problem::OP) where {CT<:ConstraintSet, OP<:ODEProblem}
     fixed_idxs = get_fixed_indices(constraints)
     fixed_values = [constraints[i].fixed_value for i in fixed_idxs]
     n_fixed = length(fixed_idxs)
@@ -21,9 +21,7 @@ function make_fitness_function_threaded(constraints::CT, ode_problem::OP, eval_f
     # end
 
     merged_input = zeros(Float64, n_total+12)
-
     merged_input[fixed_idxs] .= fixed_values  # Fill in fixed values
-
 
     function fitness_function(input::Vector{Float64})
         # Get the merged_input array for the current thread
@@ -31,25 +29,21 @@ function make_fitness_function_threaded(constraints::CT, ode_problem::OP, eval_f
         local_merged_input = copy(merged_input) 
         local_merged_input[non_fixed_indices] .= input  # Fill in variable values
 
-        return eval_function(local_merged_input, ode_problem)
+        return eval_fitness(local_merged_input, ode_problem)
     end
 
     return fitness_function
 end
-
-make_fitness_function_threaded(constraints::ParameterConstraints, ode_problem::ODEProblem) = make_fitness_function_threaded(constraints, ode_problem, eval_param_fitness)
-make_fitness_function_threaded(constraints::InitialConditionConstraints, ode_problem::ODEProblem) = make_fitness_function_threaded(constraints, ode_problem, eval_ic_fitness)
-make_fitness_function_threaded(constraints::AllConstraints, ode_problem::ODEProblem) = make_fitness_function_threaded(constraints, ode_problem, eval_all_fitness)
 #> END
 
 
 
 """
-    make_fitness_function(constraints::ConstraintSet, ode_problem::OP)
+    make_split_fitness_function(constraints::ConstraintSet, ode_problem::OP)
 
-Constructs fitness function.
-    """
-function make_fitness_function(constraints::CT, ode_problem::OP) where {CT<:ConstraintSet, OP<:ODEProblem}
+Constructs fitness function that seperates fitness evaluation and oscillation classification.
+"""
+function make_split_fitness_function(constraints::CT, ode_problem::OP) where {CT<:ConstraintSet, OP<:ODEProblem}
     fixed_idxs = get_fixed_indices(constraints)
     fixed_values = [constraints[i].fixed_value for i in fixed_idxs]
     n_fixed = length(fixed_idxs)
@@ -72,12 +66,13 @@ function make_fitness_function(constraints::CT, ode_problem::OP) where {CT<:Cons
             return [-Inf, 0.0, 0.0]
         end
 
+        #* Calculate Amem by summing all the AP2-bound species on the membrane
         Amem_sol = map(sum, sol.u)
 
         #* Normalize signal to be relative to total AP2 concentration
-        # @info "Initial AP2: $(local_merged_input[17])"
         Amem_sol ./= local_merged_input[17]
 
+        #* Find the extrema of the time series
         max_idxs, max_vals, min_idxs, min_vals = findextrema(Amem_sol, min_height=0.1)
 
         period = 0.0
@@ -86,7 +81,7 @@ function make_fitness_function(constraints::CT, ode_problem::OP) where {CT<:Cons
 
         if is_oscillatory(Amem_sol, sol.t, max_idxs, min_idxs)
             period, amplitude = getPerAmp(sol.t, max_idxs, max_vals, min_idxs, min_vals)
-            # fitness += log10(period)
+            fitness += log10(period)
         end
 
         fitness += get_fitness!(Amem_sol)
@@ -190,25 +185,25 @@ logrange(start, stop, length::Int) = exp10.(collect(range(start=log10(start), st
 "Struct to hold the results of a GA optimization"
 struct GAResults 
     # trace::Vector{Evolutionary.OptimizationTraceRecord}
-    # oscillatory_idxs::Vector{Int}
     population::Vector{Vector{Float64}}
     fitvals::Vector{Float64}
     periods::Vector{Float64}
     amplitudes::Vector{Float64}
     gen_indices::Vector{Tuple{Int,Int}}
+    lineages::Vector{Vector{Int}}
     fixed_names::Vector{Symbol}
 end
 
-"""Constructor for a GAResults object, also stores the indices of each generation"""
+"""Constructor for a GAResults object, also stores the lineages of each individual"""
 function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constraintset::ConstraintSet) 
     numpoints = sum(length, (gen.metadata["fitvals"] for gen in result.trace))
 
     indlength = activelength(constraintset)
-    # oscillatory_idxs = Int[]
     population = [Vector{Float64}(undef, indlength) for _ in 1:numpoints]
     fitvals = Vector{Float64}(undef, numpoints)
     periods = Vector{Float64}(undef, numpoints)
     amplitudes = Vector{Float64}(undef, numpoints)
+    lineages = Vector{Vector{Int}}(undef, numpoints)
 
     gen_indices = Tuple{Int, Int}[]
     startidx = 1
@@ -217,21 +212,17 @@ function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constra
 
         push!(gen_indices, (startidx, endidx))
 
-        # append!(oscillatory_idxs, gen.metadata["oscillatory_idxs"])
-
         population[startidx:endidx] .= gen.metadata["population"]
-  
         fitvals[startidx:endidx] .= gen.metadata["fitvals"]
-     
         periods[startidx:endidx] .= gen.metadata["periods"]
-    
         amplitudes[startidx:endidx] .= gen.metadata["amplitudes"]
+        lineages[startidx:endidx] .= gen.metadata["lineages"]
 
         startidx = endidx + 1
     end
 
     fixed_names = get_fixed_names(constraintset)
-    return GAResults(population, fitvals, periods, amplitudes, gen_indices, fixed_names)
+    return GAResults(population, fitvals, periods, amplitudes, gen_indices, lineages, fixed_names)
 end
 #> END ##
 
@@ -279,8 +270,8 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
                 mutation  = mutation_scheme, mutationRate = mutationRate, ɛ = n_newInds)
 
     #* Make fitness function
-    # fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
-    fitness_function = make_fitness_function(ga_problem.constraints, ga_problem.ode_problem)
+    fitness_function = make_fitness_function_threaded(ga_problem.constraints, ga_problem.ode_problem)
+    # fitness_function = make_split_fitness_function(ga_problem.constraints, ga_problem.ode_problem)
 
     #* Run the optimization
     result = Evolutionary.optimize(fitness_function, zeros(3), boxconstraints, mthd, population, opts)

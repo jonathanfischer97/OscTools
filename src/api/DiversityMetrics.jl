@@ -24,7 +24,7 @@ function getmax_pairwise_diversity(population::Vector{Vector{Float64}}, method=E
     getmax_pairwise_diversity(pop_matrix, method)
 end
 
-function getmax_pairwise_diversity(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :relamp, :DF], method=Euclidean())
+function getmax_pairwise_diversity(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :relamp, :DF], method=Euclidean())
     dfmat = df_to_matrix(df, exclude_cols)
     return getmax_pairwise_diversity(dfmat, method)
 end
@@ -88,11 +88,11 @@ function get_spread(S::Matrix{Float64})
 end
 
 """
-    get_spread(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :relamp, :DF])
+    get_spread(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :DF])
 
 Computes the spread metric for a population of individuals, which is the average deviation of all minimum distances to the nearest neighbor from the mean distance, scaled by the mean.
 """
-function get_spread(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :relamp, :DF])
+function get_spread(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :relamp , :DF])
     dfmat = df_to_matrix(df, exclude_cols)
     return get_spread(dfmat)
 end
@@ -117,7 +117,7 @@ function get_shannon_index(cr::ClusteringResult)
     return H
 end
 
-function get_shannon_index(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :amp, :relamp, :DF])
+function get_shannon_index(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :relamp, :DF])
     best_k = get_optimal_clusters(df, 20, exclude_cols)
     cr = get_kmeans(df, best_k, exclude_cols)
     return shannon_index(cr)
