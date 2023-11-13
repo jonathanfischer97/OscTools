@@ -20,7 +20,7 @@ function make_fitness_function_threaded(constraints::CT, ode_problem::OP) where 
     #     input[fixed_idxs] .= fixed_values 
     # end
 
-    merged_input = zeros(Float64, n_total+12)
+    merged_input = spzeros(Float64, n_total+12)
     merged_input[fixed_idxs] .= fixed_values  # Fill in fixed values
 
     function fitness_function(input::Vector{Float64})
@@ -236,7 +236,7 @@ Runs the genetic algorithm, returning the `GAResult` type.
 """
 function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_population(ga_problem.constraints, 10000); 
                 abstol=1e-4, reltol=1e-2, successive_f_tol = 4, iterations=5, parallelization = :thread, show_trace=true,
-                mutation_scalar = 0.5, mutation_range = fill(mutation_scalar, activelength(ga_problem.constraints)), mutation_scheme = BGA(mutation_range, 2), mutationRate = 1.0,
+                mutationScalar = 0.5, mutation_range = fill(mutationScalar, activelength(ga_problem.constraints)), mutation_scheme = BGA(mutation_range, 2), mutationRate = 1.0,
                 selection_method = tournament, num_tournament_groups=20, crossover = TPX, crossoverRate = 0.75,
                 n_newInds = 0.0) where GP <: GAProblem
 

@@ -31,7 +31,7 @@ module OscTools
     # import the cost function and other evaluation functions
     include("api/EvaluationFunctions.jl")
     export FitnessFunction, getFrequencies, getSTD, getDif, 
-            getPerAmp, solve_odeprob, solve_for_fitness_peramp, eval_param_fitness, eval_ic_fitness, eval_all_fitness
+            getPerAmp, solve_odeprob, solve_for_fitness_peramp, eval_fitness
 
     # import the constraint types and tools
     include("api/ConstraintSetTools.jl")
@@ -44,9 +44,9 @@ module OscTools
             generate_population, generate_empty_population, generate_population!, logrange,
             GAResults, run_GA
 
-        # import the differential evolution algorithm and associated functions
-        include("api/DE_functions.jl")
-        export DifferentialEvolutionProblem, DifferentialEvolutionResults, run_DE
+        # # import the differential evolution algorithm and associated functions
+        # include("api/DE_functions.jl")
+        # export DifferentialEvolutionProblem, DifferentialEvolutionResults, run_DE
 
     #include the file utilities
     include("api/FileUtils.jl")

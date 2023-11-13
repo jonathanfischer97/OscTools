@@ -24,7 +24,7 @@ Evolutionary.minimizer(s::CustomGAState) = s.fittestInd #return the fittest indi
 
 """Trace override function"""
 function Evolutionary.trace!(record::Dict{String,Any}, objfun, state::CustomGAState, population::Vector{Vector{Float64}}, method::GA, options) 
-    @info "Previous saved inds: $(findall(state.previous_saved_inds))"
+    # @info "Previous saved inds: $(findall(state.previous_saved_inds))"
 
     oscillatory_population_idxs = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
 
@@ -42,8 +42,8 @@ function Evolutionary.trace!(record::Dict{String,Any}, objfun, state::CustomGASt
         adjusted_lineage[i] = [adjust_parent_index(parent, state.previous_saved_inds) for parent in original_lineage]
     end
     record["lineages"] = adjusted_lineage
-    @info "Lineage: $(state.lineages[oscillatory_population_idxs])"
-    @info "Adjusted lineage: $(adjusted_lineage)"
+    # @info "Lineage: $(state.lineages[oscillatory_population_idxs])"
+    # @info "Adjusted lineage: $(adjusted_lineage)"
 
     # Update previous saved indices
     state.previous_saved_inds .= falses(length(state.previous_saved_inds))
