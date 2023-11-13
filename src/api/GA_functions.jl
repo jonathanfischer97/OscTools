@@ -20,7 +20,7 @@ function make_fitness_function_threaded(constraints::CT, ode_problem::OP) where 
     #     input[fixed_idxs] .= fixed_values 
     # end
 
-    merged_input = spzeros(Float64, n_total+12)
+    merged_input = zeros(Float64, n_total+12)
     merged_input[fixed_idxs] .= fixed_values  # Fill in fixed values
 
     function fitness_function(input::Vector{Float64})
