@@ -81,24 +81,24 @@ end
 
 
 
-"""Function to print out differential equations of a reaction network in Python format"""
-function format_equations(reactionnetwork::ReactionSystem)
-    osys = convert(ODESystem, reactionnetwork)
-    for ode in osys.eqs
-        ode_str = string(ode)
-        # ode_str = replace(ode_str, "~" => "=")
-        ode_str = replace(ode_str, "(t)" => "")
-        ode_str = replace(ode_str, "Differential(" => "d")
-        ode_str = replace(ode_str, ") ~" => " =")
-        println(ode_str)
-    end
-end
+# """Function to print out differential equations of a reaction network in Python format"""
+# function format_equations(reactionnetwork::ReactionSystem)
+#     osys = convert(ODESystem, reactionnetwork)
+#     for ode in osys.eqs
+#         ode_str = string(ode)
+#         # ode_str = replace(ode_str, "~" => "=")
+#         ode_str = replace(ode_str, "(t)" => "")
+#         ode_str = replace(ode_str, "Differential(" => "d")
+#         ode_str = replace(ode_str, ") ~" => " =")
+#         println(ode_str)
+#     end
+# end
 
 
-"""Automatically render the ODEs of a reaction network in LaTeX"""
-function getlatex_equations(rn)
-    rxnEqs = convert(ODESystem, rn)
-    txt = latexify(rxnEqs)
-    render(txt)
-end
+# """Automatically render the ODEs of a reaction network in LaTeX"""
+# function getlatex_equations(rn)
+#     rxnEqs = convert(ODESystem, rn)
+#     txt = latexify(rxnEqs)
+#     render(txt)
+# end
 

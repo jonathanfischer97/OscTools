@@ -14,7 +14,7 @@ function test4fixedGA(popsize=10000, fixedsymbols = [:DF, :K, :P, :A], fixedvalu
     set_fixed_values!(ga_problem.constraints, fixedvalues...)
 
     #* Set seed 
-    Random.seed!(1234)
+    seed!(1234)
 
     #* Generate the initial population
     population = generate_population(ga_problem.constraints, popsize)

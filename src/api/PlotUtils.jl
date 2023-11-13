@@ -1,7 +1,3 @@
-#< PLOT RECIPES FOR OSCILLATOR MODEL ##
-
-
-
 #< Plotting utilities for testing
 # Function to apply default settings to a plot
 # function apply_default_settings(p)

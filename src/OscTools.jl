@@ -1,20 +1,29 @@
 module OscTools 
 
-    using Catalyst, OrdinaryDiffEq
+    using Catalyst: ReactionSystem, @reaction_network, @parameters, @species, setdefaults!
+    using OrdinaryDiffEq: ODEProblem, ODESolution, solve, remake, Rosenbrock23
     using ModelingToolkit: modelingtoolkitize
-    using Evolutionary, FFTW
-    using Statistics, Random, Distributions
-    using DataFrames, CSV
-    using LinearAlgebra
-    using ProgressMeter
-    using Plots#, RecipesBase
+    using FFTW: rfft
+    using Statistics: mean, std
+    using Random: rand, default_rng, seed!, AbstractRNG
+    using Distributions: Uniform
+    using DataFrames: DataFrame, AbstractDataFrame, DataFrameRow, Not, Cols, Between
+    using CSV: File, read, write
+#     using LinearAlgebra
+    using ProgressMeter: Progress, next!
+    using Plots: plot, plot!, scatter, scatter!, vline!, savefig
     using ColorSchemes, Plots.PlotMeasures
-    using Clustering
-    using Distances
-    using NearestNeighbors
+    using Clustering: kmeans, wcounts, nclusters, ClusteringResult, silhouettes, assignments
+    using Distances: evaluate, Euclidean, pairwise
+    using NearestNeighbors: KDTree, knn
     using CategoricalArrays
-    using Printf
-    using StatsBase
+    using Printf: @sprintf
+    using StatsBase: sample, wsum
+
+    import Base: show, length, getindex, iterate, eltype
+    using Evolutionary: Evolutionary, GA, AbstractOptimizerState, AbstractOptimizer, OptimizationTraceRecord, OptimizationResults,EvolutionaryOptimizationResults, EvolutionaryObjective, 
+                        mutate!, optimize, TPX, tournament, BGA, Options, BoxConstraints, default_values
+    import Evolutionary: show, value, value!, trace!, initial_state, update_state!, recombine!, evaluate!, ismultiobjective, minimizer
 
 
 

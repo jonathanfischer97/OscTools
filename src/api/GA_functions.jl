@@ -108,7 +108,7 @@ Struct encapsulating a Genetic Algorithm (GA) optimization problem. It holds the
 end
 
 # show method overload for GAProblem
-function Base.show(io::IO, ::MIME"text/plain", prob::GAProblem) 
+function show(io::IO, ::MIME"text/plain", prob::GAProblem) 
     printstyled(io, typeof(prob.constraints), ":\n"; bold = true, underline=true, color = :green)
     printstyled(io, prob.constraints, "\n")
     printstyled(io, "\nNominal parameter values:\n"; bold = true, color = :blue)
@@ -195,7 +195,7 @@ struct GAResults
 end
 
 """Constructor for a GAResults object, also stores the lineages of each individual"""
-function GAResults(result::Evolutionary.EvolutionaryOptimizationResults, constraintset::ConstraintSet) 
+function GAResults(result::EvolutionaryOptimizationResults, constraintset::ConstraintSet) 
     numpoints = sum(length, (gen.metadata["fitvals"] for gen in result.trace))
 
     indlength = activelength(constraintset)
@@ -249,7 +249,7 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
     # callback_func = (trace) -> ga_callback(trace, ga_progress, threshold)
 
     #* Define options for the GA.
-    opts = Evolutionary.Options(abstol=abstol, reltol=reltol, successive_f_tol = successive_f_tol, iterations=iterations, 
+    opts = Options(abstol=abstol, reltol=reltol, successive_f_tol = successive_f_tol, iterations=iterations, 
                         store_trace = true, show_trace=show_trace, show_every=1, parallelization=parallelization)#, callback=callback_func)
 
     #* Define the range of possible values for each parameter when mutated, and the mutation scalar.
@@ -275,7 +275,7 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
     # fitness_function = make_split_fitness_function(ga_problem.constraints, ga_problem.ode_problem)
 
     #* Run the optimization
-    result = Evolutionary.optimize(fitness_function, zeros(3), boxconstraints, mthd, population, opts)
+    result = optimize(fitness_function, zeros(3), boxconstraints, mthd, population, opts)
 
     return GAResults(result, ga_problem.constraints)
 end

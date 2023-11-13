@@ -48,28 +48,28 @@ function get_nearest_neighbor(S::Matrix{Float64})::Vector{Float64}
 end
 
 
-"""
-    get_nearest_neighbor2(population::AbstractMatrix{Float64})
+# """
+#     get_nearest_neighbor2(population::AbstractMatrix{Float64})
 
-Non-allocating version of `get_nearest_neighbor`.
-"""
-function get_nearest_neighbor2(population::Matrix{Float64}, method=Euclidean())
-    n = size(population, 2) # assuming each col is an individual
+# Non-allocating version of `get_nearest_neighbor`.
+# """
+# function get_nearest_neighbor2(population::Matrix{Float64}, method=Euclidean())
+#     n = size(population, 2) # assuming each col is an individual
 
-    min_dists = Vector{Float64}(undef, n)
+#     min_dists = Vector{Float64}(undef, n)
 
-    for i in 1:n
-        i_min_dist = Inf
-        for j in i+1:n
-            # Calculate distance between the i-th and j-th individual
-            dist = Distances.evaluate(method, view(population, :, i), view(population, :, j))
-            i_min_dist = min(i_min_dist, dist)
-        end
-        min_dists[i] = i_min_dist
-    end
+#     for i in 1:n
+#         i_min_dist = Inf
+#         for j in i+1:n
+#             # Calculate distance between the i-th and j-th individual
+#             dist = Distances.evaluate(method, view(population, :, i), view(population, :, j))
+#             i_min_dist = min(i_min_dist, dist)
+#         end
+#         min_dists[i] = i_min_dist
+#     end
 
-    return min_dists
-end
+#     return min_dists
+# end
 
 
 
