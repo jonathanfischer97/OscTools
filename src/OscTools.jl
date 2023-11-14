@@ -1,7 +1,7 @@
 module OscTools 
 
     using Catalyst: ReactionSystem, @reaction_network, @parameters, @species, setdefaults!
-    using OrdinaryDiffEq: ODEProblem, ODESolution, solve, remake, Rosenbrock23
+    using OrdinaryDiffEq: ODEProblem, ODESolution, solve, remake, Rosenbrock23, ReturnCode
     using ModelingToolkit: modelingtoolkitize
     using FFTW: rfft
     using Statistics: mean, std

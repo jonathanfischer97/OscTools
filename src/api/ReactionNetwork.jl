@@ -51,12 +51,9 @@ function make_ODE_problem(tend::Float64=2000.)
 
     ogprob = ODEProblem(fullrn, [], tspan, [])
 
-    # @info typeof(ogprob)
-
     de = modelingtoolkitize(ogprob)
-    # @info typeof(de)
 
-    ODEProblem{true,SciMLBase.FullSpecialize}(de, [], tspan, jac=true)
+    ODEProblem(de, [], tspan, jac=true)
 end
 
 
