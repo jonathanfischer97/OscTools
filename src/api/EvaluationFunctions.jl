@@ -103,6 +103,8 @@ end
 """Core fitness function logic to be plugged into eval_fitness wrapper, sums AP2 membrane species before calling FitnessFunction"""
 function FitnessFunction(sol::OS, initialAP2::Float64) where {OS <: ODESolution}
     Amem_sol = map(sum, sol.u) ./ initialAP2 #* sum all AP2 species on the membrane to get the amplitude of the solution
+    # Amem_sol = sum(Array(sol), dims=1) |> vec
+    # Amem_sol ./= initialAP2
     FitnessFunction(Amem_sol, sol.t)
 end
 
@@ -135,7 +137,7 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
     
     #* Get the rfft of the solution and normalize it
     fftData = @view solu[1:cld(length(solu),4)] 
-    fftData = getFrequencies!(fftData, solu) |> normalize_time_series!
+    fftData = getFrequencies!(fftData, solu) #|> normalize_time_series!
 
     #* get the indexes of the peaks in the fft
     fft_peakindexes, fft_peakvals = findmaxpeaks(fftData) 
@@ -154,7 +156,7 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
         period, amplitude = getPerAmp(solt, indx_max, vals_max, indx_min, vals_min)
     
         #* add the log of the period to the standard deviation and summed difference to calculate fitness and privelage longer periods
-        return [standard_deviation + sum_diff + log(10,period), period, amplitude]
+        return [standard_deviation + sum_diff + log10(period), period, amplitude]
     end
 end
 

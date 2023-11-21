@@ -5,17 +5,18 @@
     - `fittestValue` is the fitness of the fittest individual\n
     - `fitvals` is a Matrix of the fitness, period, and amplitude of the population\n
     - `fittestInd` is the fittest individual\n"""
-mutable struct CustomGAState <: AbstractOptimizerState  
+mutable struct CustomGAState{VT} <: AbstractOptimizerState where VT <: AbstractArray 
     N::Int  #* number of elements in an individual
     n_newInds::Int  #* number of newly generated individuals per generation
     fittestValue::Float64  #* fitness of the fittest individual
     fittestInd::Vector{Float64}  #* fittest individual
-    fitvals::Vector{Float64}  #* fitness values of the population
-    periods::Vector{Float64} #* periods of the individuals
-    amplitudes::Vector{Float64} #* amplitudes of the individuals
+    valarray::VT
+    # fitvals::VT  #* fitness values of the population
+    # periods::VT #* periods of the individuals
+    # amplitudes::VT #* amplitudes of the individuals
 
     # new field for lineage tracking
-    lineages::Vector{Vector{Int}} # Array of arrays, each sub-array contains parent indices
+    lineages::Matrix{Int} # Matrix, 2 x populationSize, where each row is a parent lineage of the individual
     previous_saved_inds::BitVector # BitVector to track which individuals have been saved last generation
 end  
 value(s::CustomGAState) = s.fittestValue #return the fitness of the fittest individual
@@ -36,14 +37,60 @@ function trace!(record::Dict{String,Any}, objfun, state::CustomGAState, populati
     record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
 
     # Adjust lineage for oscillatory individuals using previous generation's saved indices
-    adjusted_lineage = Vector{Vector{Int}}(undef, length(oscillatory_population_idxs))
+    # adjusted_lineage = Vector{Vector{Int}}(undef, length(oscillatory_population_idxs))
+    # for (i, idx) in enumerate(oscillatory_population_idxs)
+    #     original_lineage = state.lineages[idx]
+    #     adjusted_lineage[i] = [adjust_parent_index(parent, state.previous_saved_inds) for parent in original_lineage]
+    # end
+    adjusted_lineage = Matrix{Int}(undef, 2, length(oscillatory_population_idxs))
     for (i, idx) in enumerate(oscillatory_population_idxs)
-        original_lineage = state.lineages[idx]
-        adjusted_lineage[i] = [adjust_parent_index(parent, state.previous_saved_inds) for parent in original_lineage]
+        original_lineage = state.lineages[:,idx]
+        adjusted_lineage[:,i] .= [adjust_parent_index(parent, state.previous_saved_inds) for parent in original_lineage]
     end
+
     record["lineages"] = adjusted_lineage
-    # @info "Lineage: $(state.lineages[oscillatory_population_idxs])"
+    # @info size(state.lineages[:, oscillatory_population_idxs])
+    # @info "Lineage: $(state.lineages[:, oscillatory_population_idxs])"
     # @info "Adjusted lineage: $(adjusted_lineage)"
+
+    # @info "Previous saved inds: $(findall(state.previous_saved_inds))"
+
+    # Update previous saved indices
+    state.previous_saved_inds .= falses(length(state.previous_saved_inds))
+    state.previous_saved_inds[oscillatory_population_idxs] .= true
+end
+
+"""Trace override function"""
+function trace!(record::Dict{String,Any}, objfun, state::CustomGAState, population::Matrix{Float64}, method::GA, options) 
+
+    oscillatory_population_idxs = findall(period -> period > 0.0, view(state.valarray, 2, :)) #find the indices of the oscillatory individuals
+
+    oscillatory_valarray = state.valarray[:, oscillatory_population_idxs]
+
+    record["oscillatory_idxs"] = oscillatory_population_idxs
+
+    record["population"] = deepcopy(population[:,oscillatory_population_idxs])
+    record["fitvals"] = oscillatory_valarray[1,:]
+    record["periods"] = oscillatory_valarray[2,:]
+    record["amplitudes"] = oscillatory_valarray[3,:]
+
+    # oscillatory_population_idxs = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
+
+    # record["oscillatory_idxs"] = oscillatory_population_idxs
+
+    # record["population"] = deepcopy(population[oscillatory_population_idxs])
+    # record["fitvals"] = state.fitvals[oscillatory_population_idxs]
+    # record["periods"] = state.periods[oscillatory_population_idxs]
+    # record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
+
+    adjusted_lineage = Matrix{Int}(undef, 2, length(oscillatory_population_idxs))
+    for (i, idx) in enumerate(oscillatory_population_idxs)
+        original_lineage = state.lineages[:,idx]
+        adjusted_lineage[:,i] .= [adjust_parent_index(parent, state.previous_saved_inds) for parent in original_lineage]
+    end
+
+    record["lineages"] = adjusted_lineage
+
 
     # Update previous saved indices
     state.previous_saved_inds .= falses(length(state.previous_saved_inds))
@@ -95,48 +142,50 @@ end
     - `population` is the initial population, specifically a Vector for dispatch\n
     - `extradata` is the additional data from the objective function\n
     - `fittest` is the fittest individual\n"""
-function initial_state(method::GA, options, objfun, population::Vector{Vector{Float64}})
+function initial_state(method::GA, options, objfun, population::Matrix{Float64})
 
-    N = length(first(population))
+    # N = length(first(population))
+    N = size(population, 1)
 
-
-    fitvals = zeros(Float64, method.populationSize)
-    periods = similar(fitvals)
-    amplitudes = similar(fitvals)
+    valarray = zeros(Float64, (3, method.populationSize))
+    fitvals = @view valarray[1,:]
+    # periods = @view valarray[2,:]
+    # amplitudes = @view valarray[3,:]
+    # fitvals = zeros(Float64, method.populationSize)
+    # periods = similar(fitvals)
+    # amplitudes = similar(fitvals)
     
 
     #* setup state values
     n_newInds = isa(method.ɛ, Int) ? method.ɛ : round(Int, method.ɛ * method.populationSize) #determine number of individuals to newly generate each generation
 
     #* Evaluate population fitness, period and amplitude
-    value!(objfun, fitvals, periods, amplitudes, population)
+    value!(objfun, valarray, population)
+    # value!(objfun, fitvals, periods, amplitudes, population)
 
 
-    maxfit, fitidx = findmax(fitvals)
+    maxfit, fitidx = vfindmax(fitvals)
     # @info "Max fitness: $(maxfit)"
     # @info "Min fitness: $(findmin(fitvals)[1])"
 
     #* Initialize lineage array
-    lineages = fill([1,1], method.populationSize)
+    # lineages = fill([1,1], method.populationSize)
+    lineages = fill(1, (2, method.populationSize))
 
     #* Initialize saved_inds BitVector
     previous_saved_inds = falses(method.populationSize)
 
     #* setup initial state
-    return CustomGAState(N, n_newInds, maxfit, copy(population[fitidx]), fitvals, periods, amplitudes, lineages, previous_saved_inds)
+    return CustomGAState(N, n_newInds, maxfit, copy(population[:,fitidx]), valarray, lineages, previous_saved_inds)
 end
 
-function evaluate!(objfun, population::Vector{Vector{Float64}}, fitvals, periods, amplitudes)
 
-    #* calculate fitness of the population
-    value!(objfun, fitvals, periods, amplitudes, population)
 
-    #* apply penalty to fitness
-    # Evolutionary.penalty!(fitvals, constraints, population)
-end
+
+
 
 """Update state function that captures additional data from the objective function"""
-function update_state!(objfun, constraints, state::CustomGAState, parents::Vector{Vector{Float64}}, method::GA, options, itr)
+function update_state!(objfun, constraints, state::CustomGAState, parents::Matrix{Float64}, method::GA, options, itr)
     populationSize = method.populationSize
     rng = options.rng
     # offspring = similar(parents)
@@ -144,21 +193,20 @@ function update_state!(objfun, constraints, state::CustomGAState, parents::Vecto
 
     offspringSize = populationSize - state.n_newInds #! recombination and mutation will only be performed on the offspring of the selected, new indidivudals will be generated randomly anyways
 
+    fitvals = @view state.valarray[1,:]
+
+
     #* select offspring
-    selected = method.selection(state.fitvals, offspringSize, rng=rng)
-    # @info "Selected parent 8381: $(parents[8381])"
-    # @info "Selected parent 6361: $(parents[6361])"
+    selected = method.selection(fitvals, offspringSize, rng=rng)
+
 
     #* perform mating
     recombine!(offspring, parents, selected, method, state, rng=rng)
-    # @info "Child 8381: $(offspring[8381])"
-    # @info "Child 8381 lineage: $(state.lineages[8381])"
-    # @info "Child 6361: $(offspring[6361])"
-    # @info "Child 6361 lineage: $(state.lineages[6361])"
+
 
     #* perform mutation
-    mutate!(view(offspring,1:offspringSize), method, constraints, rng=rng) #! only mutate descendants of the selected
-
+    # mutate!(view(offspring,1:offspringSize), method, constraints, rng=rng) #! only mutate descendants of the selected
+    mutate!([ind for ind in eachcol(offspring)], method, constraints, rng=rng) #! only mutate descendants of the selected
     #* Generate new individuals for niching
     if state.n_newInds > 0
         new_inds = @view offspring[offspringSize+1:end] #! writes to offspring directly
@@ -166,15 +214,15 @@ function update_state!(objfun, constraints, state::CustomGAState, parents::Vecto
     end
 
     #* calculate fitness, period, and amplitude of the population
-    evaluate!(objfun, offspring, state.fitvals, state.periods, state.amplitudes)
+    # evaluate!(objfun, offspring, state.fitvals, state.periods, state.amplitudes)
+    evaluate!(objfun, offspring, state.valarray)
 
 
     #* select the best individual
-    _, fitidx = findmax(state.fitvals)
-    state.fittestInd = offspring[fitidx]
-    state.fittestValue = state.fitvals[fitidx]
-    # @info "Max fitness: $(state.fittestValue)"
-    # @info "Min fitness: $(findmin(state.fitvals)[1])"
+    _, fitidx = vfindmax(fitvals)
+    # @info "Max fitness: $(fitmax)"
+    state.fittestInd .= offspring[:, fitidx]
+
     
     #* replace population
     parents .= offspring
@@ -186,7 +234,7 @@ end
 
 Recombine the selected individuals from the parents population into the offspring population using the `method` recombination method. Tracks lineage.
 """
-function recombine!(offspring, parents, selected, method, state::CustomGAState, n=length(selected);
+function recombine!(offspring, parents::Vector{Vector{Float64}}, selected, method, state::CustomGAState, n=length(selected);
                     rng::AbstractRNG=default_rng())
     mates = ((i,i == n ? i-1 : i+1) for i in 1:2:n)
     for (i,j) in mates
@@ -197,7 +245,24 @@ function recombine!(offspring, parents, selected, method, state::CustomGAState, 
             offspring[i], offspring[j] = p1, p2
         end
         # Update lineage for offspring
-        state.lineages[i] = state.lineages[j] = [selected[i], selected[j]]
+        # state.lineages[i] = state.lineages[j] = [selected[i], selected[j]]
+        state.lineages[:,i] .= state.lineages[:,j] .= [selected[i], selected[j]]
+    end
+end
+
+function recombine!(offspring, parents::Matrix{Float64}, selected, method, state::CustomGAState, n=length(selected);
+                    rng::AbstractRNG=default_rng())
+    mates = ((i,i == n ? i-1 : i+1) for i in 1:2:n)
+    for (i,j) in mates
+        p1, p2 = parents[:,selected[i]], parents[:,selected[j]]
+        if rand(rng) < method.crossoverRate
+            offspring[:,i], offspring[:,j] = method.crossover(p1, p2, rng=rng)
+        else
+            offspring[:,i], offspring[:,j] = p1, p2
+        end
+        # Update lineage for offspring
+        # state.lineages[i] = state.lineages[j] = [selected[i], selected[j]]
+        state.lineages[:,i] .= state.lineages[:,j] .= [selected[i], selected[j]]
     end
 end
 
@@ -206,11 +271,11 @@ end
 
 
 """
-    generate_new_individuals!(new_inds, constraints::CT) where CT <: BoxConstraints
+    generate_new_individuals!(new_inds::IT, constraints::CT) where {IT <: AbstractArray, CT <: BoxConstraints}
 
 Generates `n_newInds` individuals to fill out the `offspring` array through log-uniform sampling.
 """
-function generate_new_individuals!(new_inds, constraints::CT) where CT <: BoxConstraints
+function generate_new_individuals!(new_inds::IT, constraints::CT) where {IT <: AbstractArray, CT <: BoxConstraints}
 
     rand_vals = Vector{Float64}(undef, length(new_inds))
     
@@ -300,6 +365,24 @@ end
 """Override of the multiobjective check"""
 ismultiobjective(obj::EvolutionaryObjective{Function, AbstractArray, Vector{Float64}, Val{:thread}}) = false
 
+
+
+"""Override of evaluate! to take multiple outputs from the objective function"""
+function evaluate!(objfun, population, fitvals, periods, amplitudes)
+
+    #* calculate fitness of the population
+    value!(objfun, fitvals, periods, amplitudes, population)
+
+end
+
+"""Override of evaluate! to take multiple outputs from the objective function and write to single array"""
+function evaluate!(objfun, population, valarray)
+
+    #* calculate fitness of the population
+    value!(objfun, valarray, population)
+
+end
+
 """Modified value! function from Evolutionary.jl to allow for multiple outputs from the objective function to be stored"""
 function value!(obj::EvolutionaryObjective{TC, Vector{Float64}, Vector{Float64},Val{:thread}},
                                 F::Vector{Float64}, P::Vector{Float64}, A::Vector{Float64}, xs::Vector{Vector{Float64}}) where {TC}
@@ -307,6 +390,33 @@ function value!(obj::EvolutionaryObjective{TC, Vector{Float64}, Vector{Float64},
     Threads.@threads for i in 1:n
         F[i], P[i], A[i] = value(obj, xs[i])  #* evaluate the fitness, period, and amplitude for each individual
     end
+end
+
+function value!(obj::EvolutionaryObjective{TC, Vector{Float64}, Vector{Float64},Val{:thread}},
+                                F::VT, P::VT, A::VT, xs::Matrix{Float64}) where {TC, VT <: AbstractArray}
+    n = size(xs, 2)
+    Threads.@threads for i in 1:n
+        F[i], P[i], A[i] = value(obj, xs[:, i])  #* evaluate the fitness, period, and amplitude for each individual
+    end
+end
+
+function value!(obj::EvolutionaryObjective{TC, Vector{Float64}, Vector{Float64},Val{:thread}},
+                                V::VT, xs::Matrix{Float64}) where {TC, VT <: AbstractArray}
+    n = size(xs, 2)
+    Threads.@threads for i in 1:n
+        # @inbounds V[:, i] .= value(obj, xs[:, i])  #* evaluate the fitness, period, and amplitude for each individual
+
+        vview = view(V, :, i)
+        value(obj, vview, xs[:, i])
+    end
+end
+
+function optimize(f::TC, F::TF, constraints::BoxConstraints, method::M, population::Matrix{Float64},
+                  opts::Options) where {TC, TF, M<:AbstractOptimizer}
+
+    @assert size(population, 2) > 0 "Population is empty"
+    objfun = EvolutionaryObjective(f, population[:,1], F; eval=opts.parallelization)
+    optimize(objfun, constraints, method, population, opts)
 end
 
 # function Evolutionary.value!(obj::EvolutionaryObjective{TC, Vector{Float64}, Vector{Float64}, Val{:thread}},

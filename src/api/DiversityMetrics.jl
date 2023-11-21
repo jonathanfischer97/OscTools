@@ -10,7 +10,7 @@ function getmax_pairwise_diversity(population::AbstractMatrix{Float64}, method=E
     for i in 1:n
         for j in i+1:n
             # Calculate distance between the i-th and j-th individual
-            dist = Distances.evaluate(method, view(population, :, i), view(population, :, j))
+            dist = evaluate(method, view(population, :, i), view(population, :, j))
             max_dist = max(max_dist, dist)
         end
     end

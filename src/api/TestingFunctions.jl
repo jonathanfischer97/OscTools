@@ -17,7 +17,7 @@ function test4fixedGA(popsize=10000, fixedsymbols = [:DF, :K, :P, :A], fixedvalu
     seed!(1234)
 
     #* Generate the initial population
-    population = generate_population(ga_problem.constraints, popsize)
+    population = generate_matrix_population(ga_problem.constraints, popsize)
 
     #* Run the GA
     ga_results = run_GA(ga_problem, population; kwargs...)

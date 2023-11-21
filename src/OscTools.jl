@@ -19,11 +19,12 @@ module OscTools
     using CategoricalArrays
     using Printf: @sprintf
     using StatsBase: sample, wsum
+    using VectorizedReduction
 
     import Base: show, length, getindex, iterate, eltype
     using Evolutionary: Evolutionary, GA, AbstractOptimizerState, AbstractOptimizer, OptimizationTraceRecord, OptimizationResults,EvolutionaryOptimizationResults, EvolutionaryObjective, 
                         mutate!, optimize, TPX, tournament, BGA, Options, BoxConstraints, default_values
-    import Evolutionary: show, value, value!, trace!, initial_state, update_state!, recombine!, evaluate!, ismultiobjective, minimizer
+    import Evolutionary: show, value, value!, trace!, initial_state, update_state!, recombine!, evaluate!, ismultiobjective, minimizer, optimize
 
 
 

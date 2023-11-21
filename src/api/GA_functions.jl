@@ -126,12 +126,6 @@ end
     generate_population(constraints::ConstraintSet, n::Int)
 
 Generate a population of `n` individuals for the given generic `constraints <: ConstraintSet`. Each individual is sampled from a log-uniform distribution within the valid range for each parameter or initial condition.
-
-# Example
-```julia
-constraints = ParameterConstraints()
-population = generate_population(constraints, 100)
-```
 """
 function generate_population(constraints::CT, n::Int) where CT <: ConstraintSet
     # Preallocate the population array of arrays
@@ -170,6 +164,34 @@ function generate_population!(population::Vector{Vector{Float64}}, constraints::
 end
 #> END ##
 
+function generate_matrix_population(constraints::CT, n::Int) where CT <: ConstraintSet
+    population = generate_empty_matrix_population(constraints, n)
+    generate_matrix_population!(population, constraints)
+end
+
+function generate_empty_matrix_population(constraints::CT, n::Int) where CT <: ConstraintSet
+    num_params = activelength(constraints)
+    Matrix{Float64}(undef, num_params, n)
+end
+
+
+function generate_matrix_population!(population::Matrix{Float64}, constraints::CT) where CT <: ConstraintSet
+    num_individuals = size(population, 2)
+    
+    i = 1
+    for conrange in constraints
+        if !conrange.isfixed
+            min_val, max_val = log10(conrange.min), log10(conrange.max)
+            rand_vals = exp10.(rand(Uniform(min_val, max_val), num_individuals))
+            
+            population[i, :] = rand_vals
+            i += 1
+        end
+    end
+    return population
+end
+
+
 #< MISCELLANEOUS FUNCTIONS ##
 """
     logrange(start, stop, length::Int)
@@ -183,14 +205,15 @@ logrange(start, stop, length::Int) = exp10.(collect(range(start=log10(start), st
 
 #< GA RESULTS TYPE ##
 "Struct to hold the results of a GA optimization"
-struct GAResults 
+struct GAResults{T <: VecOrMat} 
     # trace::Vector{Evolutionary.OptimizationTraceRecord}
-    population::Vector{Vector{Float64}}
+    population::T
     fitvals::Vector{Float64}
     periods::Vector{Float64}
     amplitudes::Vector{Float64}
     gen_indices::Vector{Tuple{Int,Int}}
-    lineages::Vector{Vector{Int}}
+    # lineages::Vector{Vector{Int}}
+    lineages::Matrix{Int}
     fixed_names::Vector{Symbol}
 end
 
@@ -199,25 +222,27 @@ function GAResults(result::EvolutionaryOptimizationResults, constraintset::Const
     numpoints = sum(length, (gen.metadata["fitvals"] for gen in result.trace))
 
     indlength = activelength(constraintset)
-    population = [Vector{Float64}(undef, indlength) for _ in 1:numpoints]
+    # population = [Vector{Float64}(undef, indlength) for _ in 1:numpoints]
+    population = Matrix{Float64}(undef, indlength, numpoints)
     fitvals = Vector{Float64}(undef, numpoints)
     periods = Vector{Float64}(undef, numpoints)
     amplitudes = Vector{Float64}(undef, numpoints)
-    lineages = Vector{Vector{Int}}(undef, numpoints)
+    # lineages = Vector{Vector{Int}}(undef, numpoints)
+    lineages = Matrix{Int}(undef, 2, numpoints)
 
     gen_indices = Tuple{Int, Int}[]
 
     startidx = 1
     for (i, gen) in enumerate(result.trace)
-        endidx = startidx + length(gen.metadata["population"]) - 1
+        endidx = startidx + size(gen.metadata["population"], 2) - 1
 
         push!(gen_indices, (startidx, endidx))
-
-        population[startidx:endidx] .= gen.metadata["population"]
+        # @info size(gen.metadata["population"])
+        population[:, startidx:endidx] .= gen.metadata["population"]
         fitvals[startidx:endidx] .= gen.metadata["fitvals"]
         periods[startidx:endidx] .= gen.metadata["periods"]
         amplitudes[startidx:endidx] .= gen.metadata["amplitudes"]
-        lineages[startidx:endidx] .= gen.metadata["lineages"]
+        lineages[:, startidx:endidx] .= gen.metadata["lineages"]
 
         startidx = endidx + 1
     end
@@ -234,7 +259,7 @@ end
     
 Runs the genetic algorithm, returning the `GAResult` type.
 """
-function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_population(ga_problem.constraints, 10000); 
+function run_GA(ga_problem::GP, population = generate_matrix_population(ga_problem.constraints, 10000); 
                 abstol=1e-4, reltol=1e-2, successive_f_tol = 4, iterations=5, parallelization = :thread, show_trace=true,
                 mutationScalar = 0.5, mutation_range = fill(mutationScalar, activelength(ga_problem.constraints)), mutation_scheme = BGA(mutation_range, 2), mutationRate = 1.0,
                 selection_method = tournament, num_tournament_groups=20, crossover = TPX, crossoverRate = 0.75,
@@ -264,9 +289,11 @@ function run_GA(ga_problem::GP, population::Vector{Vector{Float64}} = generate_p
     # upperbound = [constraint.max*10 for constraint in ga_problem.constraints.ranges]
     # mutation_scheme = PM(lowerbound, upperbound, 2.)
 
+    poplength = size(population, 2)
+
 
     #* Define the GA method.
-    mthd = GA(populationSize = length(population), selection = selection_method(cld(length(population),num_tournament_groups), select=argmax),
+    mthd = GA(populationSize = poplength, selection = selection_method(cld(poplength,num_tournament_groups), select=argmax),
                 crossover = crossover, crossoverRate = crossoverRate, # Two-point crossover event
                 mutation  = mutation_scheme, mutationRate = mutationRate, ɛ = n_newInds)
 

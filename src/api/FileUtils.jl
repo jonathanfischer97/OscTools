@@ -83,8 +83,8 @@ function make_ga_dataframe(results::GAResults, constraints::ConstraintSet)
         per = results.periods, 
         relamp = results.amplitudes, 
         # relamp = Vector{Float64}(undef, length(results.fitvals)),
-        parent1 = Vector{Union{Int, Missing}}(undef, length(results.fitvals)),
-        parent2 = Vector{Union{Int, Missing}}(undef, length(results.fitvals))
+        parent1 = Vector{Int}(undef, length(results.fitvals)),
+        parent2 = Vector{Int}(undef, length(results.fitvals))
     )
 
     # Loop over each generation based on gen_indices
@@ -95,7 +95,8 @@ function make_ga_dataframe(results::GAResults, constraints::ConstraintSet)
     i = 1
     for conrange in constraints
         if !conrange.isfixed
-            df[!, conrange.name] .= [x[i] for x in results.population]
+            # df[!, conrange.name] .= [x[i] for x in results.population]
+            df[!, conrange.name] .= results.population[i, :]
             i += 1
         else
             df[!, conrange.name] .= conrange.fixed_value
@@ -110,8 +111,10 @@ function make_ga_dataframe(results::GAResults, constraints::ConstraintSet)
     df.gen = categorical(df.gen; ordered=true)
 
     # Populate parent columns
-    df.parent1 .= [lineage[1] for lineage in results.lineages]
-    df.parent2 .= [lineage[2] for lineage in results.lineages]
+    # df.parent1 .= [lineage[1] for lineage in results.lineages]
+    df.parent1 .= results.lineages[1, :]
+    # df.parent2 .= [lineage[2] for lineage in results.lineages]
+    df.parent2 .= results.lineages[2, :]
 
     return df
 end
