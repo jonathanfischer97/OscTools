@@ -44,7 +44,7 @@ function identify_fixed_columns(df::AbstractDataFrame)
             push!(fixed_cols, col)
         end
     end
-    push!(fixed_cols, :gen, :fit, :per, :relamp)
+    push!(fixed_cols, :gen, :fit, :per, :relamp, :parent1, :parent2)
     return fixed_cols
 end
 

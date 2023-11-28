@@ -3,7 +3,7 @@
 
 Computes the maximum pairwise distance as a diversity metric for a population of individuals. Non-allocating.
 """
-function getmax_pairwise_diversity(population::AbstractMatrix{Float64}, method=Euclidean())
+function getmax_pairwise_diversity(population::AbstractMatrix{Float64}, method=Euclidean())::Float64
     max_dist = 0.0
     n = size(population, 2) # assuming each row is an individual
 
@@ -112,9 +112,10 @@ Calculate the Shannon diversity index for a given clustering result.
 """
 function get_shannon_index(cr::ClusteringResult)
     # n = nclusters(cr) # get the number of clusters
-    p = wcounts(cr) / sum(wcounts(cr)) # get the proportions of each cluster
+    weighted_cluster_sizes = wcounts(cr) # get the weighted cluster sizes
+    p = weighted_cluster_sizes / sum(weighted_cluster_sizes) # get the proportions of each cluster
     H = -sum(p .* log2.(p)) # compute the Shannon Index
-    return H
+    return H |> abs
 end
 
 function get_shannon_index(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, :fit, :per, :relamp, :DF])
