@@ -114,7 +114,7 @@ function get_shannon_index(cr::ClusteringResult)
     # n = nclusters(cr) # get the number of clusters
     weighted_cluster_sizes = wcounts(cr) # get the weighted cluster sizes
     p = weighted_cluster_sizes / sum(weighted_cluster_sizes) # get the proportions of each cluster
-    H = -sum(p .* log2.(p)) # compute the Shannon Index
+    H = -sum(p .* log.(p)) # compute the Shannon Index
     return H |> abs
 end
 
@@ -125,3 +125,23 @@ function get_shannon_index(df::DataFrame, exclude_cols::Vector{Symbol} = [:gen, 
 end
 
 
+
+
+"""
+    calculate_simpson_index(clustering_result::ClusteringResult)
+
+Calculate the Simpson diversity index for a given clustering result.
+
+# Arguments
+- `clustering_result::ClusteringResult`: The result of a clustering operation.
+
+# Returns
+- `Float64`: The Simpson diversity index.
+"""
+function calculate_simpson_index(cr::ClusteringResult)
+    cluster_sizes = wcounts(cr) # get the cluster sizes
+    total_count = sum(cluster_sizes) # total number of elements
+    proportions = cluster_sizes / total_count # compute the proportions of each cluster
+    simpson_index = 1.0 - sum(proportions.^2) # compute the Simpson Index
+    return simpson_index
+end

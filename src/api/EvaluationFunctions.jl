@@ -10,7 +10,7 @@ end
 Get the weighted average of the absolute differences between the peaks in the FFT of the solution. The weights are proportional to the log of the peak indices (frequency).
 """
 function getWeightedAvgPeakDiff(peakvals::Vector{Float64}, peakindices::Vector{Int})
-    n = length(peakvals)
+    # n = length(peakvals)
 
     # Weights proportional to log of peak indices (frequency)
     w = log10.(peakindices)
