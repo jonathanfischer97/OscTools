@@ -17,7 +17,7 @@ module OscTools
     using Distances: evaluate, Euclidean, pairwise
     using NearestNeighbors: KDTree, knn
     using CategoricalArrays
-    # using Printf: @sprintf
+    using Printf: @sprintf
     using StatsBase: sample, wsum
     using VectorizedReduction
 
