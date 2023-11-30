@@ -134,7 +134,7 @@ function FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
     end
     
     #* Get the rfft of the solution and normalize it
-    fftData = @view solu[1:cld(length(solu),4)] 
+    fftData = @view solu[1:cld(length(solu),4)+1] 
     fftData = getFrequencies!(fftData, solu) #|> normalize_time_series!
 
     #* get the indexes of the peaks in the fft
