@@ -40,8 +40,7 @@ end
     getFrequencies(timeseries)
 Return the real-valued FFT of a timeseries, will be half the length of the timeseries
 """
-function getFrequencies(timeseries::Vector{Float64}; jump::Int = 2) 
-    # rfft_result = rfft(@view timeseries[1:2:end])
+function getFrequencies(timeseries::Vector{Float64}; jump::Int = 2) #todo make normval just the length of the sampled_timeseries
     sampled_timeseries = @view timeseries[1:jump:end]
     rfft_result = rfft(sampled_timeseries)
     norm_val = length(timeseries)/ 2 #* normalize by length of timeseries
@@ -68,7 +67,6 @@ end
 
 
 #<< PERIOD AND AMPLITUDE FUNCTIONS ##
-"""Calculates the period and amplitude of each individual in the population"""
 function getPerAmp(sol::OS) where OS <: ODESolution
 
     Amem_sol = sol[6,:] .+ sol[9,:] .+ sol[10,:] .+ sol[11,:] .+ sol[12,:] .+ sol[15,:] .+ sol[16,:]
@@ -84,7 +82,7 @@ function getPerAmp(Amem_sol, solt)
     return getPerAmp(solt, indx_max, vals_max, indx_min, vals_min)
 end
 
-"""Calculates the period and amplitude of each individual in the population"""
+"""Calculates the period and amplitude of each individual in the population."""
 function getPerAmp(solt, indx_max::Vector{Int}, vals_max::Vector{Float64}, indx_min::Vector{Int}, vals_min::Vector{Float64})
 
     #* Calculate amplitudes and periods
@@ -111,7 +109,7 @@ end
 """
     FitnessFunction(solu::Vector{Float64}, solt::Vector{Float64})
     
-Core fitness function logic that takes in the solution and time array and returns the [fitness, period, amplitude]
+Core fitness function logic that takes in the solution and time array and returns the [fitness, period, amplitude].
 
 # Arguments
 -`solu::Vector{Float64}`: The concentration output from the ODESolution (sol.u)
@@ -235,8 +233,6 @@ end
 #< FITNESS FUNCTION CALLERS AND WRAPPERS ## 
 """Evaluate the fitness of an individual with new initial conditions and new parameters"""
 function eval_fitness(inputs::Vector{Float64}, prob::OP; idx::Vector{Int} = [6, 9, 10, 11, 12, 15, 16]) where {OP <: ODEProblem}
-    newp = @view inputs[1:13]
-    newu = @view inputs[14:end]
 
     # #* holds the non-complexed initial species concentrations L, K, P, A
     # first4u = @view inputs[14:17]
@@ -245,7 +241,7 @@ function eval_fitness(inputs::Vector{Float64}, prob::OP; idx::Vector{Int} = [6, 
     # tend = calculate_tspan(newp, first4u)
 
     #* remake with new initial conditions and new parameters
-    new_prob = remake(prob; p = newp, u0= newu)
+    new_prob = remake_prob(inputs, prob)
     return solve_for_fitness_peramp(new_prob, idx)
 end
 
@@ -263,12 +259,12 @@ function solve_odeprob(prob::OP, idx=[6, 9, 10, 11, 12, 15, 16]) where OP <: ODE
     tstart = prob.tspan[2] / 10
 
     #* solve the ODE and only save the last 90% of the solution
-    savepoints = tstart:0.1:prob.tspan[2]
+    savepoints = tstart+0.1:0.1:prob.tspan[2]
     solve(prob, Rosenbrock23(), saveat=savepoints, save_idxs=idx, verbose=false, maxiters=1e6)
 end
 
 """Utility function to call ODE solver and return the fitness and period/amplitude"""
-function solve_for_fitness_peramp(prob::OP, idx) where {OP <: ODEProblem}
+function solve_for_fitness_peramp(prob::OP, idx::Vector{Int}) where {OP <: ODEProblem}
 
     sol = solve_odeprob(prob, idx)
 

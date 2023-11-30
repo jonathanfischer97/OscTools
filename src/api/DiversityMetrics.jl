@@ -128,17 +128,17 @@ end
 
 
 """
-    calculate_simpson_index(clustering_result::ClusteringResult)
+    get_simpson_index(clustering_result::ClusteringResult)
 
 Calculate the Simpson diversity index for a given clustering result.
 
 # Arguments
-- `clustering_result::ClusteringResult`: The result of a clustering operation.
+- `cr::ClusteringResult`: The result of a clustering operation.
 
 # Returns
 - `Float64`: The Simpson diversity index.
 """
-function calculate_simpson_index(cr::ClusteringResult)
+function get_simpson_index(cr::ClusteringResult)
     cluster_sizes = wcounts(cr) # get the cluster sizes
     total_count = sum(cluster_sizes) # total number of elements
     proportions = cluster_sizes / total_count # compute the proportions of each cluster
