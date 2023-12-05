@@ -36,12 +36,7 @@ function trace!(record::Dict{String,Any}, objfun, state::CustomGAState, populati
     record["periods"] = state.periods[oscillatory_population_idxs]
     record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
 
-    # Adjust lineage for oscillatory individuals using previous generation's saved indices
-    # adjusted_lineage = Vector{Vector{Int}}(undef, length(oscillatory_population_idxs))
-    # for (i, idx) in enumerate(oscillatory_population_idxs)
-    #     original_lineage = state.lineages[idx]
-    #     adjusted_lineage[i] = [adjust_parent_index(parent, state.previous_saved_inds) for parent in original_lineage]
-    # end
+
     adjusted_lineage = Matrix{Int}(undef, 2, length(oscillatory_population_idxs))
     for (i, idx) in enumerate(oscillatory_population_idxs)
         original_lineage = state.lineages[:,idx]
@@ -74,14 +69,6 @@ function trace!(record::Dict{String,Any}, objfun, state::CustomGAState, populati
     record["periods"] = oscillatory_valarray[2,:]
     record["amplitudes"] = oscillatory_valarray[3,:]
 
-    # oscillatory_population_idxs = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
-
-    # record["oscillatory_idxs"] = oscillatory_population_idxs
-
-    # record["population"] = deepcopy(population[oscillatory_population_idxs])
-    # record["fitvals"] = state.fitvals[oscillatory_population_idxs]
-    # record["periods"] = state.periods[oscillatory_population_idxs]
-    # record["amplitudes"] = state.amplitudes[oscillatory_population_idxs]
 
     adjusted_lineage = Matrix{Int}(undef, 2, length(oscillatory_population_idxs))
     for (i, idx) in enumerate(oscillatory_population_idxs)
@@ -90,7 +77,6 @@ function trace!(record::Dict{String,Any}, objfun, state::CustomGAState, populati
     end
 
     record["lineages"] = adjusted_lineage
-
 
     # Update previous saved indices
     state.previous_saved_inds .= falses(length(state.previous_saved_inds))
@@ -104,30 +90,15 @@ function adjust_parent_index(parent_idx::Int, saved_inds::BitVector)
 end
 
 
-
-# """Trace function for saving all individuals"""
-# """Testing trace override function. Saves all solutions"""
-# function Evolutionary.trace!(record::Dict{String,Any}, objfun, state, population::Vector{Vector{Float64}}, method::GA, options) 
-#     record["oscillatory_idxs"] = findall(period -> period > 0.0, state.periods) #find the indices of the oscillatory individuals
-
-#     record["population"] = deepcopy(population)
-
-#     record["fitvals"] = state.fitvals
-#     record["periods"] = state.periods
-#     record["amplitudes"] = state.amplitudes
-# end
-
-"""Show override function to prevent printing large arrays"""
 function Evolutionary.show(io::IO, t::Evolutionary.OptimizationTraceRecord{Float64, O}) where O <: Evolutionary.AbstractOptimizer
-    print(io, lpad("$(t.iteration)",6))
-    print(io, "   ")
-    print(io, lpad("$(t.value)",14))
-    for (key, value) in t.metadata
-        if !isa(value, AbstractArray)
-            print(io, "\n * $key: $value")
-        end
-    end
-    print(io, "\n * num_oscillatory: $(length(t.metadata["fitvals"]))")
+    printstyled(io, "ITERATION"; color = :white, underline=true)
+    printstyled(io, " $(t.iteration)", "\n"; bold = true, underline = true, color = :white)
+    printstyled(io, "TIME:"; color = :white)
+    printstyled(io, " $(round(t.value; digits = 2)) s", "\n"; bold = true, color = :white)
+    printstyled(io, "MAX FITNESS:"; color = :blue)
+    printstyled(io, " $(round(t.value; digits = 2))", "\n"; bold = true, color = :blue)
+    printstyled(io, "NUM OSCILLATORY:"; color = :green)
+    printstyled(io, " $(length(t.metadata["fitvals"]))", "\n"; bold = true, color = :green)
     return
 end
 #> END OF CUSTOM GA STATE TYPE AND OVERLOADS ##
@@ -165,7 +136,6 @@ function initial_state(method::GA, options, objfun, population::Matrix{Float64})
 
 
     maxfit, fitidx = vfindmax(fitvals)
-    # @info "Max fitness: $(maxfit)"
     # @info "Min fitness: $(findmin(fitvals)[1])"
 
     #* Initialize lineage array
@@ -190,6 +160,7 @@ function update_state!(objfun, constraints, state::CustomGAState, parents::Matri
     rng = options.rng
     # offspring = similar(parents)
     offspring = copy(parents) #copy so that array is fully initialized
+
 
     offspringSize = populationSize - state.n_newInds #! recombination and mutation will only be performed on the offspring of the selected, new indidivudals will be generated randomly anyways
 
@@ -219,9 +190,9 @@ function update_state!(objfun, constraints, state::CustomGAState, parents::Matri
 
 
     #* select the best individual
-    _, fitidx = vfindmax(fitvals)
-    # @info "Max fitness: $(fitmax)"
+    fitmax, fitidx = vfindmax(fitvals)
     state.fittestInd .= offspring[:, fitidx]
+    state.fittestValue = fitmax
 
     
     #* replace population
@@ -229,6 +200,7 @@ function update_state!(objfun, constraints, state::CustomGAState, parents::Matri
 
     return false
 end
+
 """
     recombine!(offspring, parents, selected, method, state::CustomGAState; rng::AbstractRNG=Random.default_rng())
 
@@ -261,7 +233,6 @@ function recombine!(offspring, parents::Matrix{Float64}, selected, method, state
             offspring[:,i], offspring[:,j] = p1, p2
         end
         # Update lineage for offspring
-        # state.lineages[i] = state.lineages[j] = [selected[i], selected[j]]
         state.lineages[:,i] .= state.lineages[:,j] .= [selected[i], selected[j]]
     end
 end
@@ -363,7 +334,7 @@ function EvolutionaryObjective(f::TC, x::Vector{Float64}, F::Vector{Float64};
 end
 
 """Override of the multiobjective check"""
-ismultiobjective(obj::EvolutionaryObjective{Function, AbstractArray, Vector{Float64}, Val{:thread}}) = false
+ismultiobjective(obj::EvolutionaryObjective) = false
 
 
 
@@ -416,6 +387,8 @@ function optimize(f::TC, F::TF, constraints::BoxConstraints, method::M, populati
 
     @assert size(population, 2) > 0 "Population is empty"
     objfun = EvolutionaryObjective(f, population[:,1], F; eval=opts.parallelization)
+    # @info "Type of obj" typeof(objfun)
+    # @info "Is multiobjective?" ismultiobjective(objfun)
     optimize(objfun, constraints, method, population, opts)
 end
 
