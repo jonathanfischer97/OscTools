@@ -76,6 +76,6 @@ module OscTools
 
     #include testing functions
     include("api/TestingFunctions.jl")
-    export test4fixedGA
+    export test4fixedGA, random_test4fixedGA
 
 end
