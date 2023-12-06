@@ -24,3 +24,22 @@ function test4fixedGA(popsize=10000, fixedsymbols = [:DF, :K, :P, :A], fixedvalu
 
     return make_ga_dataframe(ga_results, ga_problem.constraints)#, ga_results.oscillatory_idxs
 end
+
+function random_test4fixedGA(popsize=10000, fixedsymbols = [:DF, :K, :P, :A], fixedvalues = [1000., 1.0, 1.0, 3.16]; kwargs...)
+    #* Set up the default GA problem
+    ga_problem = GAProblem()
+
+    #* Fixed some constraints 
+    set_fixed_constraints!(ga_problem.constraints, fixedsymbols)
+
+    #* Assign the fixed values 
+    set_fixed_values!(ga_problem.constraints, fixedvalues...)
+
+    #* Generate the initial population
+    population = generate_matrix_population(ga_problem.constraints, popsize)
+
+    #* Run the multithreaded GA
+    ga_results = run_GA(ga_problem, population; show_trace=false, kwargs...)
+
+    return make_ga_dataframe(ga_results, ga_problem.constraints)
+end
